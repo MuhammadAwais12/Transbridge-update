@@ -1,0 +1,249 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :root {
+    --color-primary-500: #3b82f6;
+    --color-primary-600: #2563eb;
+    --color-primary-700: #1d4ed8;
+    --color-secondary-500: #22c55e;
+    --color-accent-500: #f97316;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    background-color: var(--color-primary-500);
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--color-primary-600);
+  }
+  
+  .btn-primary:focus {
+    ring-color: var(--color-primary-500);
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+  }
+  
+  .btn-danger {
+    @apply bg-error-600 hover:bg-error-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-error-500 focus:ring-offset-2;
+  }
+  
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg transition-colors duration-200;
+    focus: outline-none;
+  }
+  
+  .input-field:focus {
+    ring: 2px;
+    ring-color: var(--color-primary-500);
+    border-color: var(--color-primary-500);
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+  }
+  
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* Dynamic color classes that use CSS variables */
+  .text-primary-600 {
+    color: var(--color-primary-600);
+  }
+  
+  .text-primary-700 {
+    color: var(--color-primary-700);
+  }
+  
+  .text-secondary-500 {
+    color: var(--color-secondary-500);
+  }
+  
+  .text-accent-500 {
+    color: var(--color-accent-500);
+  }
+  
+  .bg-primary-500 {
+    background-color: var(--color-primary-500);
+  }
+  
+  .bg-primary-600 {
+    background-color: var(--color-primary-600);
+  }
+  
+  .bg-primary-700 {
+    background-color: var(--color-primary-700);
+  }
+  
+  .bg-secondary-500 {
+    background-color: var(--color-secondary-500);
+  }
+  
+  .bg-accent-500 {
+    background-color: var(--color-accent-500);
+  }
+  
+  .border-primary-500 {
+    border-color: var(--color-primary-500);
+  }
+  
+  .border-primary-600 {
+    border-color: var(--color-primary-600);
+  }
+  
+  .ring-primary-500 {
+    ring-color: var(--color-primary-500);
+  }
+
+  /* Mobile-first responsive design improvements */
+  @media (max-width: 640px) {
+    .card {
+      @apply p-4;
+    }
+    
+    .stat-card {
+      @apply p-4;
+    }
+    
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger {
+      @apply text-sm py-2 px-3;
+    }
+    
+    .input-field {
+      @apply text-sm py-2 px-3;
+    }
+  }
+
+  /* Loading states */
+  .loading-skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+  
+  .loading-spinner {
+    @apply animate-spin rounded-full border-2 border-gray-300 border-t-primary-600;
+  }
+
+  /* Form validation states */
+  .input-field.error {
+    @apply border-red-500 ring-red-500;
+  }
+  
+  .input-field.success {
+    @apply border-green-500 ring-green-500;
+  }
+
+  /* Improved focus states for accessibility */
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-danger:focus-visible {
+    @apply ring-2 ring-offset-2;
+  }
+  
+  .input-field:focus-visible {
+    @apply ring-2 ring-offset-1;
+  }
+
+  /* Better hover states */
+  .card:hover {
+    @apply shadow-md;
+  }
+  
+  .stat-card:hover {
+    @apply shadow-lg;
+  }
+
+  /* Consistent spacing utilities */
+  .section-spacing {
+    @apply py-8 md:py-12;
+  }
+  
+  .container-padding {
+    @apply px-4 md:px-6 lg:px-8;
+  }
+
+  /* Typography improvements */
+  .heading-1 {
+    @apply text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight;
+  }
+  
+  .heading-2 {
+    @apply text-xl md:text-2xl lg:text-3xl font-semibold text-gray-900 leading-tight;
+  }
+  
+  .heading-3 {
+    @apply text-lg md:text-xl lg:text-2xl font-semibold text-gray-900 leading-tight;
+  }
+  
+  .body-text {
+    @apply text-sm md:text-base text-gray-600 leading-relaxed;
+  }
+  
+  .small-text {
+    @apply text-xs md:text-sm text-gray-500;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .card {
+    @apply shadow-none border border-gray-300;
+  }
+  
+  body {
+    @apply text-black bg-white;
+  }
+}

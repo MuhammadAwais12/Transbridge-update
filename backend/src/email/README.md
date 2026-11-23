@@ -1,0 +1,90 @@
+# Email Module
+
+This module provides email functionality using the Resend service for sending welcome emails to new users.
+
+## Setup
+
+1. Set the `RESEND_API_KEY` environment variable with your Resend API key
+2. Ensure the domain `noreply@transbridgeusa.com` is verified in your Resend account
+
+## Endpoints
+
+### POST /email/welcome
+
+Sends a welcome email to a new user with their account details.
+
+**Request Body:**
+```json
+{
+  "fullName": "John Doe",
+  "email": "john.doe@example.com",
+  "accountId": "123e4567-e89b-12d3-a456-426614174000",
+  "password": "TempPass123!",
+  "loginUrl": "https://dashboard.transbridgeusa.com/login"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "messageId": "49a3999c-0ce1-4ea6-ab68-afcd6dc2e794"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Failed to send email"
+}
+```
+
+## Email Template
+
+The welcome email includes:
+- Personalized greeting using the first name (extracted from fullName)
+- Company name customization throughout the email
+- Account details (name, email, account ID)
+- Login URL with call-to-action button
+- Support contact information
+- Professional styling with HTML and plain text versions
+
+## Usage Example
+
+```typescript
+import { EmailService } from './email/email.service';
+
+@Injectable()
+export class UserService {
+  constructor(private readonly emailService: EmailService) {}
+
+  async createUser(userData: CreateUserDto) {
+    // Create user logic...
+    
+    // Send welcome email
+    const emailResult = await this.emailService.sendWelcomeEmail({
+      fullName: userData.fullName,
+      email: userData.email,
+      accountId: user.id,
+      password: user.tempPassword,
+      loginUrl: 'https://dashboard.originalaccounts.com/login'
+    });
+
+    if (!emailResult.success) {
+      // Handle email failure
+      console.error('Failed to send welcome email:', emailResult.error);
+    }
+  }
+}
+```
+
+## Environment Variables
+
+- `RESEND_API_KEY`: Your Resend API key (required)
+ - `COMPANY_NAME`: Your company name shown in emails (required)
+
+## Dependencies
+
+- `resend`: ^6.0.1 (already installed)
+- `@nestjs/common`: For NestJS decorators and functionality 
