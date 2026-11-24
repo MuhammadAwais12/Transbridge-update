@@ -1,10 +1,26 @@
-import { Controller, Post, Body, HttpStatus, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpStatus,
+  HttpCode,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { EmailService } from './email.service';
 import { WelcomeEmailDto } from './dto/welcome-email.dto';
 import { KycEmailDto } from './dto/kyc-email.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Email')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('email')
 export class EmailController {
   constructor(private readonly emailService: EmailService) {}

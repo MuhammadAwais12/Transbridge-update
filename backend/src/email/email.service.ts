@@ -174,7 +174,7 @@ export class EmailService {
     accountId: string,
     companyName: string,
     loginUrl: string,
-    password: string,
+    password?: string,
   ): string {
     return `
       <!DOCTYPE html>
@@ -208,7 +208,7 @@ export class EmailService {
             <p><strong>Name:</strong> ${fullName}</p>
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Account ID:</strong> ${accountId}</p>
-            <p><strong>Password:</strong> ${password}</p>
+            ${password ? `<p><strong>Password:</strong> ${password}</p>` : ''}
           </div>
           
           <p>You can log in any time at: <a href="${loginUrl}">${loginUrl}</a></p>
@@ -237,7 +237,7 @@ export class EmailService {
     accountId: string,
     companyName: string,
     loginUrl: string,
-    password: string,
+    password?: string,
   ): string {
     return `
 Hi ${firstName},
@@ -247,8 +247,7 @@ Welcome to ${companyName}! Your account is now active and ready to use.
 Account Details:
 Name: ${fullName}
 Email: ${email}
-Account ID: ${accountId}
-Password: ${password}
+Account ID: ${accountId}${password ? `\nPassword: ${password}` : ''}
 
 You can log in any time at: ${loginUrl}
 

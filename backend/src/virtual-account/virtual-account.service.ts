@@ -122,6 +122,14 @@ export class VirtualAccountService {
     await this.virtualAccountRepository.remove(virtualAccount);
   }
 
+  async getVirtualAccountsByMsb(msbId: string): Promise<VirtualAccount[]> {
+    return this.virtualAccountRepository.find({
+      where: { client: { msb_id: msbId } },
+      relations: ['client'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async getAllVirtualAccounts(): Promise<VirtualAccount[]> {
     return this.virtualAccountRepository.find({
       relations: ['client'],

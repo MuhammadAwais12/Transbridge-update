@@ -36,6 +36,8 @@ import { UpdateClientProfileDto } from './dto/account.dto';
 import { GetByMsbDto } from './dto/get-by-msb.dto';
 import { GetCustomersByMsbDto } from './dto/get-customers-by-msb.dto';
 import type { Request as ExpressRequest } from 'express';
+import { AccessService, Caller } from '../auth/access.service';
+import { Authenticated, CurrentCaller } from '../auth/caller.guard';
 
 type AuthenticatedRequest = ExpressRequest & { user?: { userId?: string } };
 
@@ -46,14 +48,20 @@ export class ClientController {
     private readonly clientService: ClientService,
     @InjectRepository(ClientProfile)
     private readonly clientProfileRepository: Repository<ClientProfile>,
+    private readonly access: AccessService,
   ) {}
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new client' })
+  @Authenticated()
+  @ApiOperation({ summary: 'Register a new client (MSB admin, own MSB only)' })
   @ApiBody({ type: CreateClientDto })
   @ApiResponse({ status: 201, description: 'Client registered successfully' })
   @ApiResponse({ status: 400, description: 'Validation or duplicate error' })
-  async register(@Body() createClientDto: CreateClientDto) {
+  async register(
+    @Body() createClientDto: CreateClientDto,
+    @CurrentCaller() caller: Caller,
+  ) {
+    this.access.assertMsb(caller, createClientDto.msb_id);
     return this.clientService.register(createClientDto);
   }
 
@@ -69,15 +77,22 @@ export class ClientController {
   }
 
   @Get(':id/profile')
+  @Authenticated()
   @ApiOperation({ summary: 'Get client profile' })
-  async getPin(@Param('id') id: string) {
+  async getPin(@Param('id') id: string, @CurrentCaller() caller: Caller) {
+    await this.access.assertClient(caller, id);
     return this.clientService.profile(id);
   }
 
   @Get('list')
+  @Authenticated()
   @ApiOperation({ summary: 'Get all clients for an MSB' })
   @ApiQuery({ name: 'msb_id', required: true })
-  async list(@Query('msb_id') msb_id: string) {
+  async list(
+    @Query('msb_id') msb_id: string,
+    @CurrentCaller() caller: Caller,
+  ) {
+    this.access.assertMsb(caller, msb_id);
     const clients = await this.clientProfileRepository.find({
       where: { msb_id },
     });
@@ -186,7 +201,7 @@ export class ClientController {
   }
 
   @Post('reset-wallet')
-  @UseGuards(JwtAuthGuard)
+  @Authenticated()
   @ApiOperation({ summary: 'Reset client wallet (for customer support)' })
   @ApiBody({ type: ResetWalletDto })
   @ApiResponse({ status: 200, description: 'Wallet reset successfully' })
@@ -199,6 +214,7 @@ export class ClientController {
   async resetWallet(
     @Body() resetWalletDto: ResetWalletDto,
     @Request() req: AuthenticatedRequest,
+    @CurrentCaller() caller: Caller,
   ) {
     // Extract user ID from JWT token
     const userId = req.user?.userId;
@@ -218,38 +234,53 @@ export class ClientController {
         'Only MSB administrators can reset client wallets',
       );
     }
+    // ...and only for clients of their own MSB
+    await this.access.assertClient(caller, resetWalletDto.client_id);
 
     return this.clientService.resetWallet(resetWalletDto, userId);
   }
 
   @Put(':id/profile')
-  @UseGuards(JwtAuthGuard)
+  @Authenticated()
   @ApiBody({ type: UpdateClientProfileDto })
   @ApiOperation({ summary: 'Update client profile' })
   async updateProfile(
     @Param('id') id: string,
     @Body() updateDto: UpdateClientProfileDto,
+    @CurrentCaller() caller: Caller,
   ) {
+    await this.access.assertClient(caller, id);
     return this.clientService.updateProfileV2(id, updateDto);
   }
 
   @Post('msb-data')
+  @Authenticated()
   @ApiOperation({ summary: 'Get all data filtered by msb_id' })
   @ApiBody({ type: GetByMsbDto })
-  async getAllDataByMsbId(@Body() dto: GetByMsbDto) {
+  async getAllDataByMsbId(
+    @Body() dto: GetByMsbDto,
+    @CurrentCaller() caller: Caller,
+  ) {
+    this.access.assertMsb(caller, dto.msb_id);
     return this.clientService.getAllDataByMsbId(dto);
   }
 
   @Post('customer/virtual_accounts')
+  @Authenticated()
   @ApiOperation({ summary: 'Get all customers under a specific MSB ID' })
   @ApiBody({ type: GetCustomersByMsbDto })
   @ApiResponse({ status: 200, description: 'Customers retrieved successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  async getCustomersByMsbId(@Body() dto: GetCustomersByMsbDto) {
+  async getCustomersByMsbId(
+    @Body() dto: GetCustomersByMsbDto,
+    @CurrentCaller() caller: Caller,
+  ) {
+    this.access.assertMsb(caller, dto.msb_id);
     return this.clientService.getCustomersByMsbId(dto.msb_id);
   }
 
   @Post('transactions/all')
+  @Authenticated()
   @ApiOperation({ summary: 'Get all customer IDs under a specific MSB ID' })
   @ApiBody({ type: GetCustomersByMsbDto })
   @ApiResponse({
@@ -257,11 +288,16 @@ export class ClientController {
     description: 'Customer IDs retrieved successfully',
   })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  async getAllTransactionsByMsbId(@Body() dto: GetCustomersByMsbDto) {
+  async getAllTransactionsByMsbId(
+    @Body() dto: GetCustomersByMsbDto,
+    @CurrentCaller() caller: Caller,
+  ) {
+    this.access.assertMsb(caller, dto.msb_id);
     return this.clientService.getAllTransactionsByMsbId(dto.msb_id);
   }
 
   @Get('business')
+  @Authenticated()
   @ApiOperation({
     summary: 'Get all business clients that are not MSBs',
     description:
@@ -271,8 +307,12 @@ export class ClientController {
     status: 200,
     description: 'Business clients retrieved successfully',
   })
-  async getBusinessClients() {
-    return this.clientService.getBusinessClients();
+  async getBusinessClients(@CurrentCaller() caller: Caller) {
+    // Scoped to the admin's own MSB (previously returned business clients of every MSB)
+    this.access.assertMsb(caller, caller.msbId);
+    const { clients } = await this.clientService.getBusinessClients();
+    const own = clients.filter((c) => c.msb_id === caller.msbId);
+    return { clients: own, count: own.length };
   }
 
   @Post('request-reset-password')

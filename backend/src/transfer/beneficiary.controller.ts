@@ -1,14 +1,18 @@
-import { Controller, Post, Body, BadRequestException, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, Get, Param, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Beneficiary } from '../client/beneficiary.entity';
 import { CreateBeneficiaryDto } from './dto/create-beneficiary.dto';
+import { AccessService, Caller } from '../auth/access.service';
+import { Authenticated, CurrentCaller } from '../auth/caller.guard';
 
+@Authenticated()
 @Controller('beneficiary')
 export class BeneficiaryController {
   constructor(
     @InjectRepository(Beneficiary)
     private readonly beneficiaryRepository: Repository<Beneficiary>,
+    private readonly access: AccessService,
   ) {}
 
   // Helper function to convert country names to ISO codes
@@ -164,7 +168,11 @@ export class BeneficiaryController {
   }
 
   @Post()
-  async create(@Body() createBeneficiaryDto: CreateBeneficiaryDto) {
+  async create(@Body() createBeneficiaryDto: CreateBeneficiaryDto, @CurrentCaller() caller: Caller) {
+    const client = await this.access.assertClient(caller, createBeneficiaryDto.client_id);
+    if (createBeneficiaryDto.msb_id !== client.msb_id) {
+      throw new ForbiddenException('msb_id does not match the client');
+    }
     try {
       // For beneficiaries, we need to create a receiver in BlindPay first
       // Then create a bank account for that receiver
@@ -316,7 +324,8 @@ export class BeneficiaryController {
   }
 
   @Get('list/:clientId')
-  async getBeneficiariesByClient(@Param('clientId') clientId: string) {
+  async getBeneficiariesByClient(@Param('clientId') clientId: string, @CurrentCaller() caller: Caller) {
+    await this.access.assertClient(caller, clientId);
     try {
       const beneficiaries = await this.beneficiaryRepository.find({
         where: { client_id: clientId },
@@ -329,7 +338,8 @@ export class BeneficiaryController {
   }
 
   @Get('list/msb/:msbId')
-  async getBeneficiariesByMsb(@Param('msbId') msbId: string) {
+  async getBeneficiariesByMsb(@Param('msbId') msbId: string, @CurrentCaller() caller: Caller) {
+    this.access.assertMsb(caller, msbId);
     try {
       const beneficiaries = await this.beneficiaryRepository.find({
         where: { msb_id: msbId },

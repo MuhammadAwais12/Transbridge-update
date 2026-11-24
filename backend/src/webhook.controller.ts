@@ -2,6 +2,7 @@ import { Controller, Post, Req, Res, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { TransferService } from './transfer/transfer.service';
+import { Authenticated } from './auth/caller.guard';
 
 @ApiTags('Webhook')
 @Controller('webhook')
@@ -22,6 +23,7 @@ export class WebhookController {
   }
 
   @Post('test')
+  @Authenticated() // not public: only POST /webhook (signature-verified) is
   @HttpCode(200)
   @ApiOperation({ summary: 'Test webhook endpoint (for development)' })
   async testWebhook(@Req() req: Request, @Res() res: Response) {

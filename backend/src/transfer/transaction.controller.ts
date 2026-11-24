@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Body, Logger, Param } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, Logger, Param, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from '../client/transaction.entity';
@@ -6,8 +6,13 @@ import { ClientProfile } from '../client/client.entity';
 import { MSBTransactionListDto } from './dto/msb-transaction-list.dto';
 import { ClientTransactionListDto } from './dto/client-transaction-list.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { AccessService, Caller } from '../auth/access.service';
+import { Authenticated, CurrentCaller } from '../auth/caller.guard';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @ApiTags('Transaction')
+@Authenticated()
 @Controller('transaction')
 export class TransactionController {
   private readonly logger = new Logger(TransactionController.name);
@@ -17,15 +22,26 @@ export class TransactionController {
     private readonly transactionRepository: Repository<Transaction>,
     @InjectRepository(ClientProfile)
     private readonly clientRepository: Repository<ClientProfile>,
+    private readonly access: AccessService,
   ) {}
+
+  /**
+   * `user_id` on the legacy GET routes is a clients.id, or (for MSB admins) their msb_id.
+   */
+  private async assertUserIdParam(caller: Caller, userId: string | undefined): Promise<void> {
+    if (!userId) return; // handler returns an empty list
+    if (this.access.isMsbAdmin(caller) && caller.msbId && userId === caller.msbId) return;
+    await this.access.assertClient(caller, userId);
+  }
 
   @Post('list')
   @ApiOperation({ summary: 'Get transactions for a specific client with pagination' })
   @ApiBody({ type: ClientTransactionListDto })
   @ApiResponse({ status: 200, description: 'Transactions retrieved successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request parameters' })
-  async list(@Body() body: ClientTransactionListDto) {
+  async list(@Body() body: ClientTransactionListDto, @CurrentCaller() caller: Caller) {
     const { client_id, page = 1, limit = 50 } = body;
+    if (client_id) await this.access.assertClient(caller, client_id);
     this.logger.log(`Fetching transactions for client_id: ${client_id}, page: ${page}, limit: ${limit}`);
     
     if (!client_id) {
@@ -68,7 +84,8 @@ export class TransactionController {
 
   // Keep the GET endpoint for backward compatibility
   @Get('list')
-  async listGet(@Query('user_id') userId: string) {
+  async listGet(@Query('user_id') userId: string, @CurrentCaller() caller: Caller) {
+    await this.assertUserIdParam(caller, userId);
     this.logger.log(`Fetching transactions for user_id: ${userId}`);
     
     if (!userId) {
@@ -103,7 +120,8 @@ export class TransactionController {
   }
 
   @Get('recent')
-  async getRecentTransaction(@Query('user_id') userId: string) {
+  async getRecentTransaction(@Query('user_id') userId: string, @CurrentCaller() caller: Caller) {
+    await this.assertUserIdParam(caller, userId);
     this.logger.log(`Fetching transactions for user_id: ${userId}`);
     
     if (!userId) {
@@ -140,8 +158,9 @@ export class TransactionController {
   @ApiBody({ type: MSBTransactionListDto })
   @ApiResponse({ status: 200, description: 'Transactions retrieved successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request parameters' })
-  async listForMSB(@Body() body: MSBTransactionListDto) {
+  async listForMSB(@Body() body: MSBTransactionListDto, @CurrentCaller() caller: Caller) {
     const { msb_id, page = 1, limit = 50, status, type } = body;
+    this.access.assertMsb(caller, msb_id);
     this.logger.log(`Fetching transactions for MSB: ${msb_id}, page: ${page}, limit: ${limit}`);
     
     if (!msb_id) {
@@ -227,21 +246,30 @@ export class TransactionController {
   @ApiOperation({ summary: 'Get all transactions for all clients under an MSB (GET method)' })
   @ApiResponse({ status: 200, description: 'Transactions retrieved successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request parameters' })
-  async listForMSBGet(@Query('msb_id') msbId: string, @Query('page') page: string, @Query('limit') limit: string, @Query('status') status: string, @Query('type') type: string) {
+  async listForMSBGet(@Query('msb_id') msbId: string, @Query('page') page: string, @Query('limit') limit: string, @Query('status') status: string, @Query('type') type: string, @CurrentCaller() caller: Caller) {
     return this.listForMSB({
       msb_id: msbId,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 50,
       status,
       type
-    });
+    }, caller);
   }
 
   @Get(':id/payin')
   @ApiOperation({ summary: 'Get transaction payin track' })
   @ApiResponse({ status: 200, description: 'Transaction payin retrieved successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request parameters' })
-  async getTransactionPayIn(@Param('id') id: string) {
+  async getTransactionPayIn(@Param('id') id: string, @CurrentCaller() caller: Caller) {
+    // `id` may be our transaction id or the provider payin id; either must map to a transaction the caller owns
+    const tx = await this.transactionRepository.findOne({
+      where: UUID_RE.test(id)
+        ? [{ id }, { metadata: { payin_id: id } }]
+        : { metadata: { payin_id: id } },
+      select: ['id', 'client_id'],
+    });
+    if (!tx) throw new NotFoundException('Transaction not found');
+    await this.access.assertClient(caller, tx.client_id);
     try {
        const payinRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/e/payins/${id}`, {
       method: 'GET',

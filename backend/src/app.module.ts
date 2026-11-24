@@ -13,6 +13,13 @@ import { UploadModule } from './upload/upload.module';
 import { EmailModule } from './email/email.module';
 import { BridgeModule } from './integration/bridge/bridge.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AccessModule } from './auth/access.module';
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
 
 @Module({
   imports: [
@@ -48,36 +55,19 @@ import { ThrottlerModule } from '@nestjs/throttler';
         },
       ],
     }),
-    // TypeOrmModule.forRoot({
-    //   // type: 'postgres',
-    //   // host: 'localhost',
-    //   // port: 5432,
-    //   // username: 'postgres',
-    //   // password: '@123qwe',
-    //   // database: 'transbridge_dashboard',
-    //   // autoLoadEntities: true,
-    //   // synchronize: false, // Use migrations, not auto-sync, in production!
-    //   type: 'postgres',
-    //   host: 'database-1.c1saqqkamrdk.eu-north-1.rds.amazonaws.com',
-    //   port: 5432,
-    //   username: 'postgres',
-    //   password: 'TransBridgeTeam567!',
-    //   database: 'postgres',
-    //   ssl: { rejectUnauthorized: false },
-    //   autoLoadEntities: true,
-    //   synchronize: false, // Use migrations, not auto-sync, in production!
-    // }),
     TypeOrmModule.forRoot({
-  type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT ?? '5432', 10),
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  autoLoadEntities: true,
-  synchronize: process.env.DB_SYNC === 'true', // local dev only
-}),
+      type: 'postgres',
+      host: requireEnv('DB_HOST'),
+      port: parseInt(process.env.DB_PORT ?? '5432', 10),
+      username: requireEnv('DB_USER'),
+      password: requireEnv('DB_PASSWORD'),
+      database: requireEnv('DB_NAME'),
+      ssl:
+        process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      autoLoadEntities: true,
+      synchronize: process.env.DB_SYNC === 'true', // local dev only
+    }),
+    AccessModule,
     MsbAdminModule,
     ClientModule,
     AccountModule,

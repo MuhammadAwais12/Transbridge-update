@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { Throttle } from '@nestjs/throttler';
 import type { Request as ExpressRequest } from 'express';
@@ -15,18 +16,29 @@ import {
   NotFoundException,
   UseInterceptors,
   UploadedFile,
+  ForbiddenException,
+  Headers,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MsbAdminService } from './msb-admin.service';
 import { CreateMsbAdminDto } from './dto/create-msb-admin.dto';
 import { LoginMsbAdminDto } from './dto/login-msb-admin.dto';
 import { UpdateBrandingDto } from './dto/update-branding.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiConsumes,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Enable2faDto } from './dto/enable-2fa.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Msb, User } from './msb-admin.entity';
+import { AccessService, Caller } from '../auth/access.service';
+import { Authenticated, CurrentCaller } from '../auth/caller.guard';
 
 @ApiTags('MSB Admin')
 @Controller('msb-admin')
@@ -37,7 +49,20 @@ export class MsbAdminController {
     private readonly msbRepository: Repository<Msb>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly access: AccessService,
   ) {}
+
+  /** 404 if the MSB does not exist, 403 if it is not the caller's. */
+  private async loadOwnMsb(
+    caller: Caller,
+    msbId: string,
+    opts: { allowClients?: boolean } = {},
+  ): Promise<Msb> {
+    const msb = await this.msbRepository.findOne({ where: { id: msbId } });
+    if (!msb) throw new NotFoundException('MSB not found');
+    this.access.assertMsb(caller, msb.id, opts);
+    return msb;
+  }
 
   @Post('register')
   @ApiOperation({
@@ -49,7 +74,27 @@ export class MsbAdminController {
     description: 'MSB admin registered successfully',
   })
   @ApiResponse({ status: 400, description: 'Validation or duplicate error' })
-  async register(@Body() createMsbAdminDto: CreateMsbAdminDto) {
+  @ApiResponse({
+    status: 403,
+    description: 'Missing or invalid registration key',
+  })
+  @ApiHeader({
+    name: 'x-registration-key',
+    description: 'Must match the REGISTRATION_KEY environment variable',
+    required: true,
+  })
+  async register(
+    @Body() createMsbAdminDto: CreateMsbAdminDto,
+    @Headers('x-registration-key') registrationKey?: string,
+  ) {
+    const expected = process.env.REGISTRATION_KEY;
+    if (!expected)
+      throw new ForbiddenException('Admin registration is disabled');
+    const a = Buffer.from(registrationKey ?? '');
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new ForbiddenException('Invalid registration key');
+    }
     return this.msbAdminService.register(createMsbAdminDto);
   }
 
@@ -79,50 +124,82 @@ export class MsbAdminController {
     return this.msbAdminService.logout(userId);
   }
 
+  // No super-admin role exists, so the listings below are scoped to the caller's own MSB.
   @Get('list')
-  @ApiOperation({ summary: 'Get all MSB accounts' })
-  async list() {
-    const msbs = await this.msbRepository.find();
+  @Authenticated()
+  @ApiOperation({ summary: "Get the caller's MSB account" })
+  async list(@CurrentCaller() caller: Caller) {
+    this.access.assertMsb(caller, caller.msbId);
+    const msbs = await this.msbRepository.find({
+      where: { id: caller.msbId as string },
+    });
     return { msbs };
   }
 
   @Get('users')
-  @ApiOperation({ summary: 'Get all users' })
-  async getAllUsers() {
-    const users = await this.userRepository.find();
+  @Authenticated()
+  @ApiOperation({ summary: "Get all users of the caller's MSB" })
+  async getAllUsers(@CurrentCaller() caller: Caller) {
+    this.access.assertMsb(caller, caller.msbId);
+    // Never return password_hash / twofa_secret / twofa_backup_codes
+    const users = await this.userRepository.find({
+      where: { msb_id: caller.msbId as string },
+      select: [
+        'id',
+        'msb_id',
+        'email',
+        'name',
+        'role',
+        'is_active',
+        'last_login',
+        'twofa_enabled',
+        'created_at',
+        'updated_at',
+      ],
+    });
     return { users };
   }
 
   @Get('admins')
-  @ApiOperation({ summary: 'Get all MSB admins' })
+  @Authenticated()
+  @ApiOperation({ summary: "Get the MSB admins of the caller's MSB" })
   @ApiResponse({ status: 200, description: 'List of MSB admins' })
-  async getAllAdmins() {
-    return this.msbAdminService.getAllAdmins();
+  async getAllAdmins(@CurrentCaller() caller: Caller) {
+    this.access.assertMsb(caller, caller.msbId);
+    const { admins } = await this.msbAdminService.getAllAdmins();
+    const own = admins.filter((a) => a.msb_id === caller.msbId);
+    return { admins: own, count: own.length };
   }
 
   @Get('activities')
-  @ApiOperation({ summary: 'Get all activity logs' })
+  @Authenticated()
+  @ApiOperation({ summary: "Get activity logs of the caller's MSB" })
   @ApiResponse({
     status: 200,
-    description: 'List of all activities',
+    description: 'List of activities',
   })
-  async getAllActivities() {
-    return this.msbAdminService.getAllActivities();
+  async getAllActivities(@CurrentCaller() caller: Caller) {
+    this.access.assertMsb(caller, caller.msbId);
+    const { activities } = await this.msbAdminService.getAllActivities();
+    const own = activities.filter((a) => a.msb_id === caller.msbId);
+    return { activities: own, count: own.length };
   }
 
   @Get(':msbId')
-  @ApiOperation({ summary: 'Get MSB by ID' })
+  @Authenticated()
+  @ApiOperation({ summary: 'Get MSB by ID (own MSB; clients may read their MSB)' })
   @ApiResponse({ status: 200, description: 'MSB found' })
   @ApiResponse({ status: 404, description: 'MSB not found' })
-  async getMsbById(@Param('msbId') msbId: string) {
-    const msb = await this.msbRepository.findOne({ where: { id: msbId } });
-    if (!msb) {
-      return { statusCode: 404, message: 'MSB not found' };
-    }
+  async getMsbById(
+    @Param('msbId') msbId: string,
+    @CurrentCaller() caller: Caller,
+  ) {
+    const msb = await this.loadOwnMsb(caller, msbId, { allowClients: true });
     return { msb };
   }
 
   @Patch('branding/:msbId')
+  @Authenticated()
   @UseInterceptors(
     FileInterceptor('logo', {
       limits: {
@@ -174,8 +251,10 @@ export class MsbAdminController {
   async updateBranding(
     @Param('msbId') msbId: string,
     @Body() dto: UpdateBrandingDto,
+    @CurrentCaller() caller: Caller,
     @UploadedFile() logo?: Express.Multer.File,
   ) {
+    await this.loadOwnMsb(caller, msbId);
     return this.msbAdminService.updateBranding(msbId, dto, logo);
   }
 
@@ -236,10 +315,16 @@ export class MsbAdminController {
   }
 
   @Delete('admins/:adminId')
-  @ApiOperation({ summary: 'Delete an MSB admin' })
+  @Authenticated()
+  @ApiOperation({ summary: 'Delete an MSB admin of your own MSB' })
   @ApiResponse({ status: 200, description: 'MSB admin deleted successfully' })
   @ApiResponse({ status: 404, description: 'MSB admin not found' })
-  async deleteAdmin(@Param('adminId') adminId: string) {
+  async deleteAdmin(
+    @Param('adminId') adminId: string,
+    @CurrentCaller() caller: Caller,
+  ) {
+    this.access.requireMsbAdmin(caller);
+    await this.access.assertUser(caller, adminId); // 404 if missing, 403 if another MSB
     return this.msbAdminService.deleteAdmin(adminId);
   }
 }

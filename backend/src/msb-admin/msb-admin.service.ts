@@ -120,7 +120,6 @@ export class MsbAdminService {
         fullName: name,
         email,
         accountId: user.id,
-        password,
         loginUrl,
       });
       if (!emailResult.success) {

@@ -1,14 +1,18 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Post,
   Put,
   Query,
   Headers,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { BridgeService } from './bridge.service';
 import { CreateTransferDto } from './dto/transfers.dto';
 import {
@@ -24,10 +28,68 @@ import {
 } from './dto/fee-external-accounts.dto';
 import { TransactionDetailsListDto } from './dto/transactions.dto';
 import { KYCDto } from './dto/kyc.dto';
+import { UserTransfer } from './entity/user-transfer.entity';
+import { UserBeneficiary } from './entity/user-beneficiary.entity';
+import { AccessService, Caller } from '../../auth/access.service';
+import { Authenticated, CurrentCaller } from '../../auth/caller.guard';
 
+@Authenticated()
 @Controller('bridge')
 export class BridgeController {
-  constructor(private readonly bridgeService: BridgeService) {}
+  constructor(
+    private readonly bridgeService: BridgeService,
+    private readonly access: AccessService,
+    @InjectRepository(UserTransfer)
+    private readonly userTransferRepository: Repository<UserTransfer>,
+    @InjectRepository(UserBeneficiary)
+    private readonly userBeneficiaryRepository: Repository<UserBeneficiary>,
+  ) {}
+
+  // ---- ownership helpers (customerID / userID from the URL are never trusted) ----
+
+  /** Customer ref must be the caller's (client) or belong to the admin's MSB; userID likewise. */
+  private async assertCustomerAndUser(
+    caller: Caller,
+    customerID: string,
+    userID?: string,
+    opts: { userRequired?: boolean } = {},
+  ): Promise<void> {
+    await this.access.assertCustomerRef(caller, customerID);
+    if (!userID) {
+      if (opts.userRequired) throw new BadRequestException('userID is required');
+      return;
+    }
+    await this.access.assertUser(caller, userID);
+  }
+
+  /** A transfer / virtual account id is owned via user_transfers(transfer_id -> user_id). */
+  private async assertMappedTransfer(
+    caller: Caller,
+    id: string,
+    type: 'on-ramp' | 'off-ramp',
+  ): Promise<void> {
+    const mapping = await this.userTransferRepository.findOne({
+      where: { transfer_id: id, type },
+    });
+    if (!mapping) {
+      throw new NotFoundException(
+        type === 'on-ramp' ? 'Virtual account not found' : 'Transfer not found',
+      );
+    }
+    await this.access.assertUser(caller, mapping.user_id);
+  }
+
+  /** An external account id is owned via user_beneficiaries(external_account_id -> user_id). */
+  private async assertMappedExternalAccount(
+    caller: Caller,
+    externalAccountID: string,
+  ): Promise<void> {
+    const mapping = await this.userBeneficiaryRepository.findOne({
+      where: { external_account_id: externalAccountID },
+    });
+    if (!mapping) throw new NotFoundException('External account not found');
+    await this.access.assertUser(caller, mapping.user_id);
+  }
 
   // External Accounts
   @Get('customers/:customerID/external_accounts')
@@ -40,7 +102,11 @@ export class BridgeController {
       starting_after?: string;
       ending_before?: string;
     },
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID, query.userID, {
+      userRequired: true,
+    });
     return (await this.bridgeService.getAllExternalAccounts(
       customerID,
       query,
@@ -51,7 +117,10 @@ export class BridgeController {
   async getExternalAccount(
     @Param('customerID') customerID: string,
     @Param('externalAccountID') externalAccountID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID);
+    await this.assertMappedExternalAccount(caller, externalAccountID);
     return (await this.bridgeService.getExternalAccount(
       customerID,
       externalAccountID,
@@ -64,7 +133,11 @@ export class BridgeController {
     @Query('userID') userID: string,
     @Body() body: any,
     @Headers('idempotency-key') idempotencyKey: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID, userID, {
+      userRequired: true,
+    });
     return (await this.bridgeService.createExternalAccount(
       customerID,
       userID,
@@ -78,7 +151,10 @@ export class BridgeController {
     @Param('customerID') customerID: string,
     @Param('externalAccountID') externalAccountID: string,
     @Body() body: any,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID);
+    await this.assertMappedExternalAccount(caller, externalAccountID);
     return (await this.bridgeService.updateExternalAccount(
       customerID,
       externalAccountID,
@@ -91,7 +167,12 @@ export class BridgeController {
     @Param('customerID') customerID: string,
     @Param('externalAccountID') externalAccountID: string,
     @Query('userID') userID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<{ deleted: boolean }> {
+    await this.assertCustomerAndUser(caller, customerID, userID, {
+      userRequired: true,
+    });
+    await this.assertMappedExternalAccount(caller, externalAccountID);
     return this.bridgeService.deleteExternalAccount(
       customerID,
       externalAccountID,
@@ -111,7 +192,12 @@ export class BridgeController {
       ending_before?: string;
       status?: string;
     },
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    // user_id is required: without it the user_transfers filter would match every user
+    await this.assertCustomerAndUser(caller, query.customer_id, query.user_id, {
+      userRequired: true,
+    });
     return (await this.bridgeService.getAllTransfers(query)) as unknown;
   }
 
@@ -120,7 +206,11 @@ export class BridgeController {
     @Body() body: CreateTransferDto,
     @Query('userID') userId: string,
     @Headers('idempotency-key') idempotencyKey: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, body.on_behalf_of, userId, {
+      userRequired: true,
+    });
     return (await this.bridgeService.createTransfer(
       userId,
       body,
@@ -129,7 +219,11 @@ export class BridgeController {
   }
 
   @Get('transfers/:transferID')
-  async getTransfer(@Param('transferID') transferID: string): Promise<unknown> {
+  async getTransfer(
+    @Param('transferID') transferID: string,
+    @CurrentCaller() caller: Caller,
+  ): Promise<unknown> {
+    await this.assertMappedTransfer(caller, transferID, 'off-ramp');
     return (await this.bridgeService.getTransfer(transferID)) as unknown;
   }
 
@@ -137,7 +231,9 @@ export class BridgeController {
   async updateTransfer(
     @Param('transferID') transferID: string,
     @Body() body: any,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertMappedTransfer(caller, transferID, 'off-ramp');
     return (await this.bridgeService.updateTransfer(
       transferID,
       body,
@@ -147,7 +243,9 @@ export class BridgeController {
   @Delete('transfers/:transferID')
   async deleteTransfer(
     @Param('transferID') transferID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertMappedTransfer(caller, transferID, 'off-ramp');
     return (await this.bridgeService.deleteTransfer(transferID)) as unknown;
   }
 
@@ -158,7 +256,11 @@ export class BridgeController {
     @Query('userID') userId: string,
     @Body() body: BridgeCreateVirtualAccountDto,
     @Headers('idempotency-key') idempotencyKey: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID, userId, {
+      userRequired: true,
+    });
     return (await this.bridgeService.createVirtualAccount(
       customerID,
       body,
@@ -180,7 +282,11 @@ export class BridgeController {
       status?: 'activated' | 'deactivated';
       limit?: number;
     },
+    @CurrentCaller() caller: Caller,
   ): Promise<VirtualAccountListDto> {
+    await this.assertCustomerAndUser(caller, customerID, user_id, {
+      userRequired: true,
+    });
     return await this.bridgeService.getCustomerVirtualAccounts(
       customerID,
       user_id,
@@ -193,7 +299,10 @@ export class BridgeController {
   async deactivateVirtualAccount(
     @Param('customerID') customerID: string,
     @Param('virtualAccountID') virtualAccountID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<{ deactivated: boolean }> {
+    await this.assertCustomerAndUser(caller, customerID);
+    await this.assertMappedTransfer(caller, virtualAccountID, 'on-ramp');
     return await this.bridgeService.deactivateVirtualAccount(
       customerID,
       virtualAccountID,
@@ -204,7 +313,10 @@ export class BridgeController {
   async reactivateVirtualAccount(
     @Param('customerID') customerID: string,
     @Param('virtualAccountID') virtualAccountID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<{ reactivated: boolean }> {
+    await this.assertCustomerAndUser(caller, customerID);
+    await this.assertMappedTransfer(caller, virtualAccountID, 'on-ramp');
     return await this.bridgeService.reactivateVirtualAccount(
       customerID,
       virtualAccountID,
@@ -216,7 +328,10 @@ export class BridgeController {
     @Param('customerID') customerID: string,
     @Param('virtualAccountID') virtualAccountID: string,
     @Query() { limit = 100 }: { limit?: number },
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID);
+    await this.assertMappedTransfer(caller, virtualAccountID, 'on-ramp');
     return await this.bridgeService.getVirtualAccountHistory(
       customerID,
       virtualAccountID,
@@ -228,7 +343,11 @@ export class BridgeController {
   async getAllVirtualAccountHistory(
     @Param('customerID') customerID: string,
     @Query('userID') userID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID, userID, {
+      userRequired: true,
+    });
     return await this.bridgeService.getAllTransactions(customerID, userID);
   }
 
@@ -237,7 +356,12 @@ export class BridgeController {
     @Param('customerID') customerID: string,
     @Param('virtualAccountID') virtualAccountID: string,
     @Body() body: UpdateDeveloperFeeDto,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    // Fees are set by the MSB, not by the client
+    this.access.requireMsbAdmin(caller);
+    await this.assertCustomerAndUser(caller, customerID);
+    await this.assertMappedTransfer(caller, virtualAccountID, 'on-ramp');
     return await this.bridgeService.updateDeveloperFee(
       customerID,
       virtualAccountID,
@@ -255,7 +379,9 @@ export class BridgeController {
   @Get('customers/:customerID')
   async getCustomerInfo(
     @Param('customerID') customerID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID);
     return await this.bridgeService.getCustomerObject(customerID);
   }
 
@@ -263,16 +389,20 @@ export class BridgeController {
   async updateCustomer(
     @Param('customerID') customerID: string,
     @Body() body: UpdateCustomerDto,
+    @CurrentCaller() caller: Caller,
   ): Promise<unknown> {
+    await this.assertCustomerAndUser(caller, customerID);
     return await this.bridgeService.updateCustomer(customerID, body);
   }
 
   @Get('developer/fees/accumulated')
   async getAccumulatedFees(
     @Query('msbID') msbID: string,
+    @CurrentCaller() caller: Caller,
     @Query('month') month?: string,
     @Query('year') year?: string,
   ): Promise<unknown> {
+    this.access.assertMsb(caller, msbID);
     const m = month ? Number(month) : undefined;
     const y = year ? Number(year) : undefined;
     return await this.bridgeService.getAccumulatedFees(msbID, m, y);
@@ -281,9 +411,11 @@ export class BridgeController {
   @Get('msb/:msbID/transactions/statement')
   async getStatementTransactions(
     @Param('msbID') msbID: string,
+    @CurrentCaller() caller: Caller,
     @Query('month') month?: string,
     @Query('year') year?: string,
   ): Promise<unknown> {
+    this.access.assertMsb(caller, msbID);
     const m = month ? Number(month) : undefined;
     const y = year ? Number(year) : undefined;
     return await this.bridgeService.getTransactionsByDateRange(msbID, m, y);
@@ -294,7 +426,12 @@ export class BridgeController {
     @Param('customerID') customerID: string,
     @Param('virtualAccountID') virtualAccountID: string,
     @Query('userID') userID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<TransactionDetailsListDto> {
+    await this.assertCustomerAndUser(caller, customerID, userID, {
+      userRequired: true,
+    });
+    await this.assertMappedTransfer(caller, virtualAccountID, 'on-ramp');
     return await this.bridgeService.getVirtualAccountStatement(
       customerID,
       userID,
@@ -305,7 +442,9 @@ export class BridgeController {
   @Get('msb/:msbID/fee_external_account')
   async getMSBFeeExternalAccount(
     @Param('msbID') msbID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<FeeExternalAccount | null> {
+    this.access.assertMsb(caller, msbID);
     return await this.bridgeService.getMSBFeeExternalAccount(msbID);
   }
 
@@ -313,7 +452,9 @@ export class BridgeController {
   async createMSBFeeExternalAccount(
     @Param('msbID') msbID: string,
     @Body() body: CreateFeeExternalAccountDto,
+    @CurrentCaller() caller: Caller,
   ): Promise<FeeExternalAccount | null> {
+    this.access.assertMsb(caller, msbID);
     return await this.bridgeService.createMSBFeeExternalAccount(msbID, body);
   }
 
@@ -322,7 +463,9 @@ export class BridgeController {
     @Param('msbID') msbID: string,
     @Param('feeExternalAccountID') feeExternalAccountID: string,
     @Body() body: UpdateFeeExternalAccountDto,
+    @CurrentCaller() caller: Caller,
   ): Promise<FeeExternalAccount | null> {
+    this.access.assertMsb(caller, msbID);
     return await this.bridgeService.updateMSBFeeExternalAccount(
       msbID,
       feeExternalAccountID,
@@ -333,7 +476,9 @@ export class BridgeController {
   @Post('kyc_links')
   async generateKYCLink(
     @Query('customerID') customerID: string,
+    @CurrentCaller() caller: Caller,
   ): Promise<KYCDto> {
+    await this.assertCustomerAndUser(caller, customerID);
     return await this.bridgeService.generateKYCLink(customerID);
   }
 }

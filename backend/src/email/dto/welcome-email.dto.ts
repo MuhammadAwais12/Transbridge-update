@@ -1,9 +1,16 @@
-import { IsEmail, IsNotEmpty, IsString, IsUUID } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class WelcomeEmailDto {
   @ApiProperty({
-    description: 'Full name of the user (will be split to get first and last name)',
+    description:
+      'Full name of the user (will be split to get first and last name)',
     example: 'John Doe',
   })
   @IsNotEmpty()
@@ -26,13 +33,13 @@ export class WelcomeEmailDto {
   @IsUUID()
   accountId: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Temporary password for the user to log in',
     example: 'TempPass123!',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  password: string;
+  password?: string;
 
   @ApiProperty({
     description: 'Login URL for the user to access their account',

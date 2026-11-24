@@ -1,18 +1,31 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Account } from '../client/account.entity';
 import { TransferCreateAccountDto } from './dto/create-account.dto';
+import { AccessService, Caller } from '../auth/access.service';
+import { Authenticated, CurrentCaller } from '../auth/caller.guard';
 
+@Authenticated()
 @Controller('account')
 export class AccountController {
   constructor(
     @InjectRepository(Account)
     private readonly accountRepository: Repository<Account>,
+    private readonly access: AccessService,
   ) {}
 
   @Post()
-  async create(@Body() createAccountDto: TransferCreateAccountDto) {
+  async create(@Body() createAccountDto: TransferCreateAccountDto, @CurrentCaller() caller: Caller) {
+    // Never trust client_id / msb_id / receiver_id from the body
+    const client = await this.access.assertClient(caller, createAccountDto.client_id);
+    if (createAccountDto.msb_id !== client.msb_id) {
+      throw new ForbiddenException('msb_id does not match the client');
+    }
+    if (!client.blindpay_receiver_id || createAccountDto.receiver_id !== client.blindpay_receiver_id) {
+      throw new ForbiddenException('receiver_id does not belong to the client');
+    }
+
     // Call BlindPay API to create the bank account
     const apiUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/receivers/${createAccountDto.receiver_id}/bank-accounts`;
     
