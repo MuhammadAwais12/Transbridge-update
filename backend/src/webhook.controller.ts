@@ -1,4 +1,5 @@
-import { Controller, Post, Req, Res, HttpCode, RawBodyRequest } from '@nestjs/common';
+import { Controller, Post, Req, Res, HttpCode, RawBodyRequest, Logger } from '@nestjs/common';
+import { ProviderConfigError } from './config/providers.config';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { TransferService } from './transfer/transfer.service';
@@ -7,6 +8,8 @@ import { Authenticated } from './auth/caller.guard';
 @ApiTags('Webhook')
 @Controller('webhook')
 export class WebhookController {
+  private readonly logger = new Logger(WebhookController.name);
+
   constructor(private readonly transferService: TransferService) {}
 
   @Post()
@@ -18,6 +21,12 @@ export class WebhookController {
       await this.transferService.handleWebhook(req.body, req.headers, req.rawBody);
       res.status(200).send('OK');
     } catch (err) {
+      if (err instanceof ProviderConfigError) {
+        // Public endpoint: keep the env variable name in the server log only.
+        this.logger.error(`Webhook not configured: ${err.message}`);
+        res.status(503).send('Webhook not configured');
+        return;
+      }
       console.error('Webhook processing failed:', err);
       res.status(400).send('Webhook processing failed: ' + err.message);
     }
