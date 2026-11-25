@@ -46,11 +46,19 @@ import {
 import { FeeExternalAccount } from './entity/fee-external_account.entity';
 import { generateIdempotencyKey } from 'src/utils/generateIdempotencyKey';
 import { KYCDto, KYCListDto } from './dto/kyc.dto';
+import { providers } from '../../config/providers.config';
 @Injectable()
 export class BridgeService {
-  private readonly apiKey: string;
-  private readonly baseUrl: string;
-  private readonly requestTimeoutMs: number;
+  // Read lazily from providers.config so a missing value fails the call, not startup
+  private get apiKey(): string {
+    return providers.transbridge.apiKey;
+  }
+  private get baseUrl(): string {
+    return providers.transbridge.apiUrl;
+  }
+  private get requestTimeoutMs(): number {
+    return providers.transbridge.timeoutMs;
+  }
 
   constructor(
     @InjectRepository(UserTransfer)
@@ -62,13 +70,7 @@ export class BridgeService {
     private readonly dataSource: DataSource,
     @InjectRepository(FeeExternalAccount)
     private readonly feeExternalAccountRepository: Repository<FeeExternalAccount>,
-  ) {
-    this.apiKey = process.env.TRANSBRIDGE_API_KEY || '';
-    this.baseUrl = (process.env.TRANSBRIDGE_API_URL || '').replace(/\/$/, '');
-    this.requestTimeoutMs = Number(
-      process.env.TRANSBRIDGE_API_TIMEOUT_MS || 60000,
-    );
-  }
+  ) {}
 
   private buildHeaders(idempotencyKey?: string): Record<string, string> {
     const headers: Record<string, string> = {

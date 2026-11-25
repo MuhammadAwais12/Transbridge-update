@@ -370,9 +370,10 @@ export class BridgeController {
   }
 
   @Get('developer/fees')
-  async getDeveloperFees(): Promise<{
+  async getDeveloperFees(@CurrentCaller() caller: Caller): Promise<{
     default_liquidation_address_fee_percent: string;
   }> {
+    this.access.requireMsbAdmin(caller);
     return await this.bridgeService.getDefaultDeveloperFee();
   }
 

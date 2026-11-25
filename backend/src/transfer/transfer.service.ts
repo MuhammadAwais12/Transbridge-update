@@ -1,3 +1,4 @@
+import { providers } from '../config/providers.config';
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -50,11 +51,7 @@ export class TransferService {
 
   async getTransferPreview(dto: CreateTransferDto): Promise<any> {
     console.log('Transfer preview request:', JSON.stringify(dto, null, 2));
-    console.log('Environment variables check:', {
-      ONLINE_BANKING_URL: process.env.NEXT_PUBLIC_ONLINE_BANKING_URL,
-      BLINDPAY_INSTANCE_ID: process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID,
-      BLINDPAY_API_KEY: process.env.NEXT_PUBLIC_BLINDPAY_API_KEY ? 'SET' : 'NOT SET'
-    });
+    console.log('Environment variables check:', providers.status());
 
     // Validate transfer amount based on payment method and currency
     await this.validateTransferAmount(dto);
@@ -212,12 +209,12 @@ export class TransferService {
     console.log('================================');
 
     // Get payin quote
-    const payinQuoteRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/payin-quotes`, {
+    const payinQuoteRes = await fetch(`${providers.onlineBanking.url}/v1/instances/${providers.blindpay.instanceId}/payin-quotes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-        'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+        'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+        'x-api-key': providers.onlineBanking.xApiKey ?? '',
       },
       body: JSON.stringify({
         receiver_id: sourceAccount.blindpay_bank_account_id,
@@ -256,12 +253,12 @@ export class TransferService {
     });
 
     // Get payout quote
-    const payoutQuoteRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/quotes/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}`, {
+    const payoutQuoteRes = await fetch(`${providers.onlineBanking.url}/v2/quotes/${providers.blindpay.instanceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-        'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+        'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+        'x-api-key': providers.onlineBanking.xApiKey ?? '',
       },
       body: JSON.stringify({
         bank_account_id: beneficiaryBankAccountId,
@@ -357,12 +354,12 @@ export class TransferService {
     console.log('Initiating payin with quote ID:', dto.payin_quote_id);
     console.log('Network for payin initiation:', dto.network);
     
-    const payinRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/payins/payins/evm`, {
+    const payinRes = await fetch(`${providers.onlineBanking.url}/v1/instances/${providers.blindpay.instanceId}/payins/payins/evm`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-        'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+        'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+        'x-api-key': providers.onlineBanking.xApiKey ?? '',
       },
       body: JSON.stringify({
         payin_quote_id: dto.payin_quote_id,
@@ -461,11 +458,11 @@ export class TransferService {
     return tx;
   }
 
-  async handleWebhook(body: any, headers: any): Promise<void> {
+  async handleWebhook(body: any, headers: any, rawBody: Buffer | undefined): Promise<void> {
     console.log('Received webhook:', { body, headers });
-    
-    // Verify webhook signature using the webhook service
-    if (!this.webhookService.verifySignature(headers, body)) {
+
+    // Verify webhook signature over the exact request bytes
+    if (!this.webhookService.verifySignature(headers, rawBody)) {
       throw new Error('Webhook signature verification failed');
     }
 
@@ -510,12 +507,12 @@ export class TransferService {
     try {
       console.log(`Minting ${amount} USDC to wallet: ${walletAddress}`);
       
-      const mintRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/utilities/mint`, {
+      const mintRes = await fetch(`${providers.onlineBanking.url}/v1/instances/${providers.blindpay.instanceId}/utilities/mint`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify({
           address: walletAddress,
@@ -795,12 +792,12 @@ export class TransferService {
           throw new BadRequestException('Missing quote creation parameters for retry');
         }
         
-        const newQuoteRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/quotes/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}`, {
+        const newQuoteRes = await fetch(`${providers.onlineBanking.url}/v2/quotes/${providers.blindpay.instanceId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-            'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+            'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+            'x-api-key': providers.onlineBanking.xApiKey ?? '',
           },
           body: JSON.stringify(quoteParams),
         });
@@ -849,12 +846,12 @@ export class TransferService {
       // Initiate payout
       this.logger.log('Initiating payout with quote ID:', payout_quote_id);
       
-      const payoutRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/payouts/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/evm`, {
+      const payoutRes = await fetch(`${providers.onlineBanking.url}/v2/payouts/${providers.blindpay.instanceId}/evm`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify({
           quote_id: payout_quote_id,

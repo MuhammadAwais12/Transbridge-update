@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { BrandingConfig, MSB } from '../types';
 import { useAuth } from './AuthContext';
-import { API_BASE_URL } from '../lib/apiBase';
+import { apiFetch } from '../lib/apiFetch';
 
 interface BrandingContextType {
   branding: BrandingConfig;
@@ -39,17 +39,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     const fetchMsb = async () => {
       if (user?.msbId) {
         try {
-          const token = localStorage.getItem('auth_token');
-          const res = await fetch(`${API_BASE_URL}/msb-admin/${user.msbId}`,
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-            }
-          );
-          if (!res.ok) throw new Error('Failed to fetch MSB');
-          const data = await res.json();
+          const data = await apiFetch(`/msb-admin/${user.msbId}`);
           if (data.msb) {
             setBranding({
               primaryColor: data.msb.primary_color,
@@ -106,22 +96,10 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       if (name !== undefined) payload.name = name;
       console.log(payload);
       try {
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(`${API_BASE_URL}/msb-admin/branding/${msb.id}`,
-          {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify(payload),
-          }
-        );
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.message || 'Failed to update branding');
-        }
-        const data = await res.json();
+        const data = await apiFetch(`/msb-admin/branding/${msb.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
         // Update state with backend response
         if (data.msb) {
           setBranding({

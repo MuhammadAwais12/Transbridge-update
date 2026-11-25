@@ -1,3 +1,4 @@
+import { providers } from '../config/providers.config';
 import { Controller, Post, Body, BadRequestException, Get, Param, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -179,7 +180,7 @@ export class BeneficiaryController {
       console.log('--- BlindPay Create Receiver Debug ---');
       
       // Step 1: Create receiver in BlindPay
-      const receiverUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/receivers/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}`;
+      const receiverUrl = `${providers.onlineBanking.url}/v2/receivers/${providers.blindpay.instanceId}`;
       // Prepare receiver data based on beneficiary type
       const receiverData: any = {
         type: createBeneficiaryDto.beneficiary_type,
@@ -234,8 +235,8 @@ export class BeneficiaryController {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify(receiverData),
       });
@@ -252,7 +253,7 @@ export class BeneficiaryController {
       console.log('Receiver Created:', receiver);
 
       // Step 2: Create bank account for the receiver
-      const bankAccountUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/receivers/${receiver.id}/bank-accounts`;
+      const bankAccountUrl = `${providers.onlineBanking.url}/v1/instances/${providers.blindpay.instanceId}/receivers/${receiver.id}/bank-accounts`;
       const bankAccountData = {
         type: 'ach', // Default to ACH for beneficiaries
         name: createBeneficiaryDto.name, // Add name field
@@ -270,8 +271,8 @@ export class BeneficiaryController {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify(bankAccountData),
       });

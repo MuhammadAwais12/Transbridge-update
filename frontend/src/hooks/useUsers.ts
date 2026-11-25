@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE_URL } from '../lib/apiBase';
-import { getAuthHeaders } from '../lib/auth';
+import { apiFetch } from '../lib/apiFetch';
 
 interface User {
     id: string;
@@ -38,15 +37,7 @@ export function useUsers() {
             setLoading(true);
             setError(null);
 
-            const res = await fetch(`${API_BASE_URL}/msb-admin/users`, {
-                headers: Object.assign({}, getAuthHeaders(), {}),
-            });
-
-            if (!res.ok) {
-                throw new Error(`Failed to fetch users: ${res.status} ${res.statusText}`);
-            }
-
-            const data = await res.json();
+            const data = await apiFetch('/msb-admin/users');
             setUsers(data.users || data || []);
         } catch (err: unknown) {
             const error = err as Error;

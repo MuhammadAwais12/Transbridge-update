@@ -1,3 +1,4 @@
+import { providers } from '../config/providers.config';
 import { Controller, Post, Body, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -27,7 +28,7 @@ export class AccountController {
     }
 
     // Call BlindPay API to create the bank account
-    const apiUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/receivers/${createAccountDto.receiver_id}/bank-accounts`;
+    const apiUrl = `${providers.onlineBanking.url}/v1/instances/${providers.blindpay.instanceId}/receivers/${createAccountDto.receiver_id}/bank-accounts`;
     
     console.log('Creating account with payload:', JSON.stringify(createAccountDto, null, 2));
     console.log('BlindPay API URL:', apiUrl);
@@ -37,8 +38,8 @@ export class AccountController {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify(createAccountDto.bankAccountData),
       });

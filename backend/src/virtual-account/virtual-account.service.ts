@@ -1,3 +1,4 @@
+import { providers } from '../config/providers.config';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -39,7 +40,7 @@ export class VirtualAccountService {
     }
 
     // Call BlindPay API to create virtual account using the client's receiver ID
-    const blindpayUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/virtual-accounts/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/${client.blindpay_receiver_id}`;
+    const blindpayUrl = `${providers.onlineBanking.url}/v2/virtual-accounts/${providers.blindpay.instanceId}/${client.blindpay_receiver_id}`;
     const blindpayPayload = {
       token: dto.token || 'USDC',
       blockchain_wallet_id: dto.blockchainWalletId,
@@ -53,8 +54,8 @@ export class VirtualAccountService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-        'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+        'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+        'x-api-key': providers.onlineBanking.xApiKey ?? '',
       },
       body: JSON.stringify(blindpayPayload),
     });

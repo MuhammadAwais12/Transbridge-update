@@ -4,12 +4,13 @@ import { User, Msb } from '../msb-admin/msb-admin.entity';
 import { ClientProfile } from '../client/client.entity';
 import { AccessService } from './access.service';
 import { CallerGuard } from './caller.guard';
+import { JwtStrategy } from './jwt.strategy';
 
 /** Global so every controller can use @Authenticated() / AccessService without re-importing. */
 @Global()
 @Module({
   imports: [TypeOrmModule.forFeature([User, Msb, ClientProfile])],
-  providers: [AccessService, CallerGuard],
+  providers: [AccessService, CallerGuard, JwtStrategy],
   exports: [AccessService, CallerGuard],
 })
 export class AccessModule {}

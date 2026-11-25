@@ -1,3 +1,4 @@
+import { providers, ProviderConfigError } from '../config/providers.config';
 import {
   Injectable,
   BadRequestException,
@@ -71,12 +72,7 @@ export class ClientService {
   }
 
   private getRequestTimeoutMs(): number {
-    const fromEnv = Number(
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_TIMEOUT_MS ||
-        process.env.ONLINE_BANKING_TIMEOUT_MS ||
-        10000,
-    );
-    return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 10000;
+    return providers.onlineBanking.timeoutMs;
   }
 
   private async fetchWithTimeout(
@@ -244,9 +240,7 @@ export class ClientService {
     let kycUrl = '';
 
     try {
-      const baseUrl = (
-        process.env.NEXT_PUBLIC_ONLINE_BANKING_URL || ''
-      ).replace(/\/$/, '');
+      const baseUrl = providers.onlineBanking.url;
       const api_url = `${baseUrl}/customers`;
 
       // const response = await fetch(api_url, {
@@ -260,8 +254,7 @@ export class ClientService {
       // });
 
       const xApiKey =
-        process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY ||
-        process.env.ONLINE_BANKING_X_API_KEY;
+        providers.onlineBanking.xApiKey;
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -341,13 +334,14 @@ export class ClientService {
       }
 
       if (profileData.client_type === 'business') {
-        blindpay_receiver_id = process.env.ORIGINAL_TECH_ACCOUNT_ID ?? '';
+        blindpay_receiver_id = providers.originalTechAccountId;
         const msb = await this.msbRepository.findOne({ where: { id: msb_id } });
         if (msb?.customer_id) {
           blindpay_receiver_id = msb.customer_id;
         }
       }
     } catch (e) {
+      if (e instanceof ProviderConfigError) throw e; // keep the "missing env var" message
       // Provide more specific error messages based on the error
       let userFriendlyMessage = 'Failed to create BlindPay receiver';
       if (e.message.includes('400')) {
@@ -965,14 +959,14 @@ export class ClientService {
         id_doc_country: client.id_document_country?.toUpperCase(), // ISO2
         id_doc_type: client.id_document_type,
       };
-      const api_url = `https://online-banking.originalaccounts.com/v2/receivers/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/${client?.blindpay_receiver_id}`;
+      const api_url = `${providers.onlineBanking.url}/v2/receivers/${providers.blindpay.instanceId}/${client?.blindpay_receiver_id}`;
 
       const response = await fetch(api_url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          Authorization: `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify(blindpay_payload),
       });
@@ -1004,6 +998,7 @@ export class ClientService {
         ...mapped,
       };
     } catch (e) {
+      if (e instanceof ProviderConfigError) throw e; // keep the "missing env var" message
       // Provide more specific error messages based on the error
       let userFriendlyMessage = 'Failed to create BlindPay receiver';
       if (e.message.includes('400')) {
@@ -1059,19 +1054,14 @@ export class ClientService {
     }
 
     // 2) Fetch individual customers using Promise.all
-    const baseUrl = (
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_URL ||
-      process.env.ONLINE_BANKING_URL ||
-      ''
-    ).replace(/\/$/, '');
+    const baseUrl = providers.onlineBanking.url;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       accept: 'application/json',
     };
     const xApiKey =
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY ||
-      process.env.ONLINE_BANKING_X_API_KEY;
+      providers.onlineBanking.xApiKey;
     if (xApiKey) headers['x-api-key'] = xApiKey;
 
     // Fetch individual customers using Promise.all
@@ -1238,19 +1228,14 @@ export class ClientService {
   }
 
   async getCustomersByMsbId(msb_id: string) {
-    const baseUrl = (
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_URL ||
-      process.env.ONLINE_BANKING_URL ||
-      ''
-    ).replace(/\/$/, '');
+    const baseUrl = providers.onlineBanking.url;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       accept: 'application/json',
     };
     const xApiKey =
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY ||
-      process.env.ONLINE_BANKING_X_API_KEY;
+      providers.onlineBanking.xApiKey;
     if (xApiKey) headers['x-api-key'] = xApiKey;
 
     // Fetch all clients under the specified MSB ID
@@ -1326,19 +1311,14 @@ export class ClientService {
   }
 
   async getAllTransactionsByMsbId(msb_id: string) {
-    const baseUrl = (
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_URL ||
-      process.env.ONLINE_BANKING_URL ||
-      ''
-    ).replace(/\/$/, '');
+    const baseUrl = providers.onlineBanking.url;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       accept: 'application/json',
     };
     const xApiKey =
-      process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY ||
-      process.env.ONLINE_BANKING_X_API_KEY;
+      providers.onlineBanking.xApiKey;
     if (xApiKey) headers['x-api-key'] = xApiKey;
 
     // Fetch all clients under the specified MSB ID

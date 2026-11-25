@@ -9,36 +9,7 @@ This module provides email functionality using the Resend service for sending we
 
 ## Endpoints
 
-### POST /email/welcome
-
-Sends a welcome email to a new user with their account details.
-
-**Request Body:**
-```json
-{
-  "fullName": "John Doe",
-  "email": "john.doe@example.com",
-  "accountId": "123e4567-e89b-12d3-a456-426614174000",
-  "password": "TempPass123!",
-  "loginUrl": "https://dashboard.transbridgeusa.com/login"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "messageId": "49a3999c-0ce1-4ea6-ab68-afcd6dc2e794"
-}
-```
-
-**Error Response:**
-```json
-{
-  "success": false,
-  "error": "Failed to send email"
-}
-```
+None. The former `/email/*` HTTP endpoints were removed; inject `EmailService` (exported by `EmailModule`) instead.
 
 ## Email Template
 

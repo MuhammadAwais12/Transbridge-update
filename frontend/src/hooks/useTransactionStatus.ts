@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '../lib/apiBase';
-import { getAuthHeaders } from '../lib/auth';
+import { apiFetch } from '../lib/apiFetch';
 
 export interface TransactionStatus {
   id: string;
@@ -21,15 +20,7 @@ export function useTransactionStatus(transactionId: string | null) {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/transfer/transaction/${transactionId}`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch transaction status');
-      }
-
-      const data = await response.json();
+      const data = await apiFetch(`/transfer/transaction/${transactionId}`);
       setStatus(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch transaction status');
@@ -86,15 +77,7 @@ export function useMultipleTransactionStatuses(transactionIds: string[]) {
 
     try {
       const promises = transactionIds.map(async (id) => {
-        const response = await fetch(`${API_BASE_URL}/transfer/transaction/${id}`, {
-          headers: getAuthHeaders(),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch transaction ${id}`);
-        }
-
-        const data = await response.json();
+        const data = await apiFetch(`/transfer/transaction/${id}`);
         return { id, data };
       });
 

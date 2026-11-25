@@ -8,7 +8,7 @@ import { Beneficiary } from './beneficiary.entity';
 import { Transaction } from './transaction.entity';
 import { ResetPassword } from './reset-password.entity';
 import { ClientController } from './client.controller';
-import { JwtStrategy } from './jwt.strategy';
+import { jwtSecret } from '../auth/jwt-secret';
 import { WalletModule } from '../msb-wallet/wallet.module';
 import { BridgeModule } from 'src/integration/bridge/bridge.module';
 import { EmailModule } from '../email/email.module';
@@ -26,7 +26,7 @@ import { Msb } from 'src/msb-admin/msb-admin.entity';
       ResetPassword,
     ]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'changeme',
+      secret: jwtSecret(),
       signOptions: { expiresIn: '7d' },
     }),
     WalletModule,
@@ -34,7 +34,7 @@ import { Msb } from 'src/msb-admin/msb-admin.entity';
     EmailModule,
   ],
   controllers: [ClientController],
-  providers: [ClientService, JwtStrategy],
+  providers: [ClientService],
   exports: [ClientService],
 })
 export class ClientModule {}

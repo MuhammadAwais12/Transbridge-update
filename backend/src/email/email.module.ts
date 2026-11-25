@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { EmailController } from './email.controller';
 import { EmailService } from './email.service';
 
+// No controller: EmailService is used internally (client / msb-admin services) only.
 @Module({
-  controllers: [EmailController],
   providers: [EmailService],
   exports: [EmailService],
 })

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBranding } from '../../contexts/BrandingContext';
-import { API_BASE_URL } from '../../lib/apiBase';
+import { apiFetch, ApiError } from '../../lib/apiFetch';
 import { 
   User, 
   Mail, 
@@ -73,17 +73,7 @@ export default function Profile() {
       setFetchError(null);
       
       try {
-        const response = await fetch(`${API_BASE_URL}/client/${user.clientId}/profile`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch profile data');
-        }
-
-        const data = await response.json();
+        const data = await apiFetch(`/client/${user.clientId}/profile`);
         setProfileData(data);
         console.log('profile data',data)
       } catch (err) {
@@ -200,26 +190,21 @@ export default function Profile() {
       };
       console.log(profileUpdateData);
 
-      const response = await fetch(`${API_BASE_URL}/client/${user.clientId}/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify(profileUpdateData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
+      let data;
+      try {
+        data = await apiFetch(`/client/${user.clientId}/profile`, {
+          method: 'PUT',
+          body: JSON.stringify(profileUpdateData),
+        });
+      } catch (err) {
         // Handle validation errors
-        if (response.status === 400 && data.errors) {
-          setValidationErrors(data.errors);
+        const body = err instanceof ApiError ? (err.body as any) : null;
+        if (err instanceof ApiError && err.status === 400 && body?.errors) {
+          setValidationErrors(body.errors);
           throw new Error('Please fix the validation errors');
         }
-        
-        // Handle other errors
-        throw new Error(data.message || 'Failed to update profile');
+        // Other errors: ApiError carries the backend message
+        throw err;
       }
 
       // Update profile data with response
@@ -278,26 +263,19 @@ export default function Profile() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/client/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({
-          currentPassword: securityData.currentPassword,
-          newPassword: securityData.newPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setError('Current password is incorrect');
-        } else {
-          setError(data.message || 'Failed to change password');
-        }
+      // Backend answers 401 for a wrong current password, so don't log the user out on 401 here
+      try {
+        await apiFetch('/client/change-password', {
+          method: 'POST',
+          body: JSON.stringify({
+            currentPassword: securityData.currentPassword,
+            newPassword: securityData.newPassword,
+          }),
+          skipAuthRedirect: true,
+        });
+      } catch (err) {
+        if (!(err instanceof ApiError)) throw err; // network error -> outer catch
+        setError(err.status === 401 ? 'Current password is incorrect' : err.message || 'Failed to change password');
         return;
       }
 

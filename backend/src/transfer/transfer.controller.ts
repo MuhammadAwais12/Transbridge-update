@@ -61,9 +61,12 @@ export class TransferController {
       if (beneficiary.blindpay_bank_account_id) allowedBankAccountIds.add(beneficiary.blindpay_bank_account_id);
     }
     if (dto.destination_account_id) {
-      // Internal transfers may target another client's account, so only existence is checked here.
+      // Internal transfers may target another client's account, but only within the caller's MSB.
       const destination = await this.accountRepository.findOne({ where: { id: dto.destination_account_id } });
       if (!destination) throw new NotFoundException('Destination account not found');
+      if (!caller.msbId || destination.msb_id !== caller.msbId) {
+        throw new ForbiddenException('Destination account belongs to a different MSB');
+      }
       if (destination.blindpay_bank_account_id) allowedBankAccountIds.add(destination.blindpay_bank_account_id);
     }
     if (dto.bank_account_id && !allowedBankAccountIds.has(dto.bank_account_id)) {

@@ -4,7 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { MsbAdminController } from './msb-admin.controller';
 import { MsbAdminService } from './msb-admin.service';
 import { User, Msb, Activity } from './msb-admin.entity';
-import { JwtStrategy } from './jwt.strategy';
+import { jwtSecret } from '../auth/jwt-secret';
 import { EmailModule } from '../email/email.module';
 import { UploadModule } from '../upload/upload.module';
 
@@ -12,13 +12,13 @@ import { UploadModule } from '../upload/upload.module';
   imports: [
     TypeOrmModule.forFeature([User, Msb, Activity]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'changeme',
+      secret: jwtSecret(),
       signOptions: { expiresIn: '7d' },
     }),
     EmailModule,
     UploadModule,
   ],
   controllers: [MsbAdminController],
-  providers: [MsbAdminService, JwtStrategy],
+  providers: [MsbAdminService],
 })
 export class MsbAdminModule {} 

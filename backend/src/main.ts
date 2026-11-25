@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   if (process.env.NODE_ENV === 'production') {
@@ -11,15 +12,16 @@ async function bootstrap() {
     console.log = () => {};
     console.debug = () => {};
   }
-  const app = await NestFactory.create(AppModule, {
-    bodyParser: false, // Disable default body parser to configure custom limits
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false, // Registered below with custom limits
+    rawBody: true, // keep req.rawBody (Buffer) for webhook signature verification
   });
 
   // Increase body size limit for file uploads and base64 images (100MB to handle base64 which is ~33% larger)
+  // useBodyParser (not express.json directly) so Nest attaches req.rawBody
   const bodyLimit = process.env.BODY_LIMIT ?? '15mb';
-  const express = require('express');
-  app.use(express.json({ limit: bodyLimit }));
-  app.use(express.urlencoded({ limit: bodyLimit, extended: true }));
+  app.useBodyParser('json', { limit: bodyLimit });
+  app.useBodyParser('urlencoded', { limit: bodyLimit, extended: true });
   // Enable global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({

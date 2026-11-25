@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { API_BASE_URL } from '../lib/apiBase';
-import { getAuthHeaders } from '../lib/auth';
+import { apiFetch, ApiError } from '../lib/apiFetch';
 import type { User } from '../types';
 
 // Mock data for demo mode
@@ -652,18 +651,9 @@ export function useClients() {
       setLoading(true);
       setError(null);
       // Fetch from backend
-      const clientsRes = await fetch(`${API_BASE_URL}/client/list?msb_id=${user.msbId}`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!clientsRes.ok) throw new Error('Failed to fetch clients');
-      const data = await clientsRes.json();
+      const data = await apiFetch(`/client/list?msb_id=${user.msbId}`);
       const clients = (data.clients || []) as Client[];
-      const usersResponse = await fetch(`${API_BASE_URL}/msb-admin/users`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-
-      if (!usersResponse.ok) throw new Error('Failed to fetch users');
-      const usersData = await usersResponse.json();
+      const usersData = await apiFetch('/msb-admin/users');
       const users = (usersData.users || []) as User[];
       const clientsWithUsers = clients.map(client => ({
         ...client,
@@ -689,12 +679,10 @@ export function useClients() {
 
   const updateClientStatus = async (clientId: string, isActive: boolean) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/client/update-status/${clientId}`, {
+      await apiFetch(`/client/update-status/${clientId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ isActive }),
       });
-      if (!res.ok) throw new Error('Failed to update client status');
       await fetchClients();
     } catch (err: any) {
       console.error('Error updating client status:', err);
@@ -704,12 +692,10 @@ export function useClients() {
 
   const updateClientKycStatus = async (clientId: string, kycStatus: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/client/update-kyc-status/${clientId}`, {
+      await apiFetch(`/client/update-kyc-status/${clientId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ kycStatus }),
       });
-      if (!res.ok) throw new Error('Failed to update KYC status');
       await fetchClients();
     } catch (err: any) {
       console.error('Error updating KYC status:', err);
@@ -719,12 +705,10 @@ export function useClients() {
 
   const updateClientRiskLevel = async (clientId: string, riskLevel: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/client/update-risk-level/${clientId}`, {
+      await apiFetch(`/client/update-risk-level/${clientId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ riskLevel }),
       });
-      if (!res.ok) throw new Error('Failed to update risk level');
       await fetchClients();
     } catch (err: any) {
       console.error('Error updating risk level:', err);
@@ -758,7 +742,7 @@ export function useAccounts() {
     try {
       setLoading(true);
       setError(null);
-      let res, data;
+      let data;
       console.log(user);
       if (user.role === 'msb_admin') {
         // Validate msbId before making the request
@@ -769,20 +753,12 @@ export function useAccounts() {
           return;
         }
         // Fetch all accounts for this MSB
-        res = await fetch(`${API_BASE_URL}/account/msb/${user.msbId}`, {
-          headers: Object.assign({}, getAuthHeaders(), {}),
-        });
-        if (!res.ok) throw new Error('Failed to fetch accounts');
-        data = await res.json();
+        data = await apiFetch(`/account/msb/${user.msbId}`);
         setAccounts(data || []);
       } else {
         // Fetch only this client's accounts
         console.log("client id", user.clientId);
-        res = await fetch(`${API_BASE_URL}/account/list?user_id=${user.clientId}`, {
-          headers: Object.assign({}, getAuthHeaders(), {}),
-        });
-        if (!res.ok) throw new Error('Failed to fetch accounts');
-        data = await res.json();
+        data = await apiFetch(`/account/list?user_id=${user.clientId}`);
         setAccounts(data || []);
       }
     } catch (err: any) {
@@ -814,12 +790,10 @@ export function useAccounts() {
 
   const updateAccountStatus = async (accountId: string, status: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/account/update-status/${accountId}`, {
+      await apiFetch(`/account/update-status/${accountId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error('Failed to update account status');
       await fetchAccounts();
     } catch (err: any) {
       console.error('Error updating account status:', err);
@@ -855,9 +829,8 @@ export function useMSBTransactions(page: number = 1, limit: number = 50, status?
       setError(null);
 
       // Use the new MSB transaction endpoint
-      const res = await fetch(`${API_BASE_URL}/transaction/msb/list`, {
+      const data = await apiFetch('/transaction/msb/list', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           msb_id: user.msbId,
           page,
@@ -866,8 +839,6 @@ export function useMSBTransactions(page: number = 1, limit: number = 50, status?
           type
         }),
       });
-      if (!res.ok) throw new Error('Failed to fetch MSB transactions');
-      const data = await res.json();
       setTransactions(data.transactions || []);
       setTotal(data.total || 0);
       setTotalPages(data.totalPages || 0);
@@ -926,18 +897,14 @@ export function useDashboardTransactions() {
       const pageLimit = 100; // API limit
 
       while (hasMorePages && currentPage <= 5) { // Limit to 5 pages max for dashboard
-        const res = await fetch(`${API_BASE_URL}/transaction/msb/list`, {
+        const data = await apiFetch('/transaction/msb/list', {
           method: 'POST',
-          headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             msb_id: user.msbId,
             page: currentPage,
             limit: pageLimit
           }),
         });
-
-        if (!res.ok) throw new Error('Failed to fetch MSB transactions');
-        const data = await res.json();
 
         if (data.transactions && data.transactions.length > 0) {
           allTransactions.push(...data.transactions);
@@ -1011,17 +978,14 @@ export function useTransactions() {
       const clientId = user.clientId || user.id;
 
       // Fetch from backend with pagination
-      const res = await fetch(`${API_BASE_URL}/transaction/list`, {
+      const data = await apiFetch('/transaction/list', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           client_id: clientId,
           page: page,
           limit: pageSize
         }),
       });
-      if (!res.ok) throw new Error('Failed to fetch transactions');
-      const data = await res.json();
 
       const newTransactions = data.transactions || [];
 
@@ -1077,12 +1041,10 @@ export function useTransactions() {
 
   const approveTransaction = async (transactionId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/transaction/approve/${transactionId}`, {
+      await apiFetch(`/transaction/approve/${transactionId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ status: 'approved' }),
       });
-      if (!res.ok) throw new Error('Failed to approve transaction');
       await fetchTransactions(1, false);
     } catch (err: any) {
       console.error('Error approving transaction:', err);
@@ -1092,12 +1054,10 @@ export function useTransactions() {
 
   const rejectTransaction = async (transactionId: string, reason?: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/transaction/reject/${transactionId}`, {
+      await apiFetch(`/transaction/reject/${transactionId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ status: 'rejected', reason }),
       });
-      if (!res.ok) throw new Error('Failed to reject transaction');
       await fetchTransactions(1, false);
     } catch (err: any) {
       console.error('Error rejecting transaction:', err);
@@ -1107,12 +1067,10 @@ export function useTransactions() {
 
   const updateTransactionStatus = async (transactionId: string, status: string, reason?: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/transaction/update-status/${transactionId}`, {
+      await apiFetch(`/transaction/update-status/${transactionId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ status, reason }),
       });
-      if (!res.ok) throw new Error('Failed to update transaction status');
       await fetchTransactions(1, false);
     } catch (err: any) {
       console.error('Error updating transaction status:', err);
@@ -1122,13 +1080,10 @@ export function useTransactions() {
 
   const createTransaction = async (transactionData: any) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/transaction/create`, {
+      const data = await apiFetch('/transaction/create', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify(transactionData),
       });
-      if (!res.ok) throw new Error('Failed to create transaction');
-      const data = await res.json();
       await fetchTransactions(1, false);
       return { success: true, data };
     } catch (err: any) {
@@ -1153,21 +1108,7 @@ export function useTransactions() {
       } else {
         clientId = user.clientId || user.id; // Use clientId for clients, fallback to id
       }
-      const res = await fetch(
-        `${API_BASE_URL}/transaction/recent?user_id=${clientId}`,
-        {
-          method: 'GET',
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Error fetching transaction: ${res.status}`);
-      }
-      const data = await res.json();
+      const data = await apiFetch(`/transaction/recent?user_id=${clientId}`);
       return data.transactions || []; // Assume backend already returns an array of transactions
     } catch (err: any) {
       console.error('Error fetching recent transaction:', err);
@@ -1212,11 +1153,7 @@ export function useNotifications() {
       setLoading(true);
       setError(null);
       // Fetch from backend
-      const res = await fetch(`${API_BASE_URL}/notification/list?user_id=${user.id}`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!res.ok) throw new Error('Failed to fetch notifications');
-      const data = await res.json();
+      const data = await apiFetch(`/notification/list?user_id=${user.id}`);
       setNotifications(data.notifications || []);
       setUnreadCount((data.notifications || []).filter((n: any) => !n.read).length);
     } catch (err: any) {
@@ -1234,12 +1171,10 @@ export function useNotifications() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/notification/mark-read/${notificationId}`, {
+      await apiFetch(`/notification/mark-read/${notificationId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ read: true }),
       });
-      if (!res.ok) throw new Error('Failed to mark notification as read');
       await fetchNotifications();
     } catch (err: any) {
       console.error('Error marking notification as read:', err);
@@ -1249,12 +1184,10 @@ export function useNotifications() {
 
   const markAllAsRead = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/notification/mark-all-read`, {
+      await apiFetch('/notification/mark-all-read', {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ read: true }),
       });
-      if (!res.ok) throw new Error('Failed to mark all notifications as read');
       await fetchNotifications();
     } catch (err: any) {
       console.error('Error marking all notifications as read:', err);
@@ -1289,11 +1222,7 @@ export function useComplianceAlerts() {
       setLoading(true);
       setError(null);
       // Fetch from backend
-      const res = await fetch(`${API_BASE_URL}/compliance-alert/list?msb_id=${user.msbId}`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!res.ok) throw new Error('Failed to fetch compliance alerts');
-      const data = await res.json();
+      const data = await apiFetch(`/compliance-alert/list?msb_id=${user.msbId}`);
       setAlerts(data.alerts || []);
     } catch (err: any) {
       console.error('Error fetching compliance alerts:', err);
@@ -1337,13 +1266,9 @@ export function useClientManagement() {
       const tempPassword = clientData.password || generateTempPassword();
 
       // Create the client (user + profile) in one call
-      const clientRes = await fetch(`${API_BASE_URL}/client/register`, {
+      // apiFetch throws ApiError with the backend's message / error field
+      const clientRecord = await apiFetch('/client/register', {
         method: 'POST',
-        headers: Object.assign(
-          {},
-          getAuthHeaders(),
-          { 'Content-Type': 'application/json' }
-        ),
         body: JSON.stringify({
           msb_id: user.msbId,
           email: clientData.email,
@@ -1389,23 +1314,6 @@ export function useClientManagement() {
           id_document_back: clientData.idDocBackFile?.fileUrl || clientData.idDocBackFile || null,
         }),
       });
-      if (!clientRes.ok) {
-        // Try to extract error message from response
-        let errorMessage = 'Failed to create client';
-        try {
-          const errorData = await clientRes.json();
-          if (errorData?.message) {
-            errorMessage = errorData.message;
-          } else if (errorData?.error) {
-            errorMessage = errorData.error;
-          }
-        } catch (parseError) {
-          // If we can't parse the error response, use the status text
-          errorMessage = clientRes.statusText || 'Failed to create client';
-        }
-        throw new Error(errorMessage);
-      }
-      const clientRecord = await clientRes.json();
 
       // Store the demo credentials for login
       const demoCredentials = JSON.parse(localStorage.getItem('demo_credentials') || '[]');
@@ -1440,19 +1348,13 @@ export function useClientManagement() {
     try {
       const formData = new FormData();
       formData.append("file", cliendDocument);
-      const clientRes = await fetch(`${API_BASE_URL}/upload`, {
+      // FormData body: apiFetch leaves Content-Type to the browser (multipart boundary)
+      const uploaded = await apiFetch('/upload', {
         method: "POST",
-        headers: {
-          ...getAuthHeaders(),
-        },
         body: formData,
       });
-
-      if (!clientRes.ok) {
-        throw new Error(`Upload failed: ${clientRes.statusText}`);
-      }
       setUploading(false);
-      return await clientRes.json();
+      return uploaded;
     }
     catch (err: any) {
       setUploading(false);
@@ -1502,28 +1404,20 @@ export function useAccountManagement() {
           opened_date: new Date().toISOString(),
           last_activity: new Date().toISOString()
         };
-      const res = await fetch(`${API_BASE_URL}/account`, {
+      const data = await apiFetch('/account', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Failed to create account');
-      const data = await res.json();
 
       // Create a notification for the client
       /*
       // TODO: Re-enable notification logic once /client/get-user-id/:clientId endpoint is fixed
       if (accountData.clientId) {
-        const clientRes = await fetch(`${API_BASE_URL}/client/get-user-id/${accountData.clientId}`, {
-          headers: Object.assign({}, getAuthHeaders(), {}),
-        });
-        if (!clientRes.ok) throw new Error('Failed to get client user ID');
-        const clientData = await clientRes.json();
+        const clientData = await apiFetch(`/client/get-user-id/${accountData.clientId}`);
 
         if (clientData) {
-          await fetch(`${API_BASE_URL}/notification/create`, {
+          await apiFetch('/notification/create', {
             method: 'POST',
-            headers: Object.assign({}, getAuthHeaders(), {}),
             body: JSON.stringify({
               user_id: clientData.user_id,
               msb_id: user.msbId,
@@ -1569,24 +1463,16 @@ export function useWallets() {
     setLoading(true);
     setError(null);
     try {
-      let url = `${API_BASE_URL}/wallet`;
+      let url = '/wallet';
 
       // For MSB admin users, filter by their MSB ID
       if (user?.role === 'msb_admin' && user?.msbId) {
         url += `?msb_id=${user.msbId}`;
       }
 
-      const res = await fetch(url, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Failed to fetch wallets');
-      const data = await res.json();
+      const data = await apiFetch(url);
       const wallets = data as any[];
-      const usersResponse = await fetch(`${API_BASE_URL}/msb-admin/users`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!usersResponse.ok) throw new Error('Failed to fetch users');
-      const usersData = await usersResponse.json();
+      const usersData = await apiFetch('/msb-admin/users');
       const users = (usersData.users || []) as User[];
       const walletsWithUsers = wallets.map(wallet => ({
         ...wallet,
@@ -1611,11 +1497,7 @@ export function useWallets() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/wallet/client/${clientId}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Failed to fetch wallets');
-      const data = await res.json();
+      const data = await apiFetch(`/wallet/client/${clientId}`);
       setWallets(data);
       setLoading(false);
       return data;
@@ -1634,40 +1516,21 @@ export function useWallets() {
     try {
       console.log('useWallets sending to backend:', walletData);
 
-      const res = await fetch(`${API_BASE_URL}/wallet`, {
-        method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
-        body: JSON.stringify(walletData),
-      });
-
-      console.log('Backend response status:', res.status);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Backend error response:', errorText);
-
-        // Try to parse the error response as JSON to get the actual error message
-        let errorMessage = 'Failed to create wallet';
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.details?.message) {
-            errorMessage = errorData.details.message;
-          } else if (errorData.errors && Array.isArray(errorData.errors)) {
-            // Extract error messages from validation errors
-            const errorMessages = errorData.errors.map((err: any) => err.message).join(', ');
-            errorMessage = errorMessages || errorMessage;
-          }
-        } catch (parseError) {
-          // If JSON parsing fails, use the raw error text
-          errorMessage = errorText || errorMessage;
+      let data;
+      try {
+        data = await apiFetch('/wallet', {
+          method: 'POST',
+          body: JSON.stringify(walletData),
+        });
+      } catch (err) {
+        // Keep the old fallback to validation errors ({ errors: [{ message }] }) when there is no message
+        const body = err instanceof ApiError ? (err.body as any) : null;
+        console.error('Backend error response:', body);
+        if (body && !body.message && !body.details?.message && Array.isArray(body.errors)) {
+          throw new Error(body.errors.map((e: any) => e.message).join(', ') || 'Failed to create wallet');
         }
-
-        throw new Error(errorMessage);
+        throw err;
       }
-
-      const data = await res.json();
       console.log('Backend success response:', data);
 
       setLoading(false);
@@ -1700,11 +1563,7 @@ export function useBeneficiaries() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/beneficiary/list/${user?.clientId}`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Failed to fetch beneficiaries');
-      const data = await res.json();
+      const data = await apiFetch(`/beneficiary/list/${user?.clientId}`);
       setBeneficiaries(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch beneficiaries');
@@ -1717,13 +1576,10 @@ export function useBeneficiaries() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/beneficiary`, {
+      const data = await apiFetch('/beneficiary', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify(beneficiaryData),
       });
-      if (!res.ok) throw new Error('Failed to create beneficiary');
-      const data = await res.json();
       setLoading(false);
       return { success: true, data };
     } catch (err: any) {
@@ -1758,17 +1614,9 @@ export function useVirtualAccounts() {
       setLoading(true);
       setError(null);
       // Fetch from backend
-      const res = await fetch(`${API_BASE_URL}/virtual-account/list?msb_id=${user.msbId}`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!res.ok) throw new Error('Failed to fetch virtual accounts');
-      const data = await res.json();
+      const data = await apiFetch(`/virtual-account/list?msb_id=${user.msbId}`);
       const virtualAccounts = (data.virtualAccounts || []) as VirtualAccount[];
-      const usersResponse = await fetch(`${API_BASE_URL}/msb-admin/users`, {
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!usersResponse.ok) throw new Error('Failed to fetch users');
-      const usersData = await usersResponse.json();
+      const usersData = await apiFetch('/msb-admin/users');
       const users = (usersData.users || []) as User[];
       const virtualAccountsWithUsers = virtualAccounts.map(virtualAccount => ({
         ...virtualAccount,
@@ -1798,9 +1646,8 @@ export function useVirtualAccounts() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/virtual-account`, {
+      const data = await apiFetch('/virtual-account', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           clientId: virtualAccountData.clientId,
           paymentRail: virtualAccountData.paymentRail,
@@ -1810,8 +1657,6 @@ export function useVirtualAccounts() {
           description: virtualAccountData.description,
         }),
       });
-      if (!res.ok) throw new Error('Failed to create virtual account');
-      const data = await res.json();
       await fetchVirtualAccounts();
       return { success: true, data };
     } catch (err: any) {
@@ -1823,12 +1668,10 @@ export function useVirtualAccounts() {
 
   const updateVirtualAccountStatus = async (virtualAccountId: string, status: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/virtual-account/update-status/${virtualAccountId}`, {
+      await apiFetch(`/virtual-account/update-status/${virtualAccountId}`, {
         method: 'PUT',
-        headers: Object.assign({}, getAuthHeaders(), {}),
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) throw new Error('Failed to update virtual account status');
       await fetchVirtualAccounts();
     } catch (err: any) {
       console.error('Error updating virtual account status:', err);
@@ -1858,13 +1701,10 @@ export function useTransfer() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/transfer`, {
+      const data = await apiFetch('/transfer', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify(transferData),
       });
-      if (!res.ok) throw new Error('Failed to get transfer preview');
-      const data = await res.json();
       setPreview(data);
       setLoading(false);
       return data;
@@ -1880,13 +1720,10 @@ export function useTransfer() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/transfer/confirm`, {
+      const data = await apiFetch('/transfer/confirm', {
         method: 'POST',
-        headers: Object.assign({}, getAuthHeaders(), { 'Content-Type': 'application/json' }),
         body: JSON.stringify(confirmData),
       });
-      if (!res.ok) throw new Error('Failed to initiate transfer');
-      const data = await res.json();
       setTransaction(data);
       setLoading(false);
       return data;
@@ -1900,12 +1737,7 @@ export function useTransfer() {
   // Get transaction status (stub)
   const getTransactionStatus = async (transactionId: string) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/transfer/transaction/${transactionId}`, {
-        method: 'GET',
-        headers: Object.assign({}, getAuthHeaders(), {}),
-      });
-      if (!res.ok) throw new Error('Failed to get transaction status');
-      const data = await res.json();
+      const data = await apiFetch(`/transfer/transaction/${transactionId}`);
       return data;
     } catch (err: any) {
       console.error('Error getting transaction status:', err);
@@ -1943,34 +1775,13 @@ export async function linkWallet({ wallet_address, wallet_network }: { wallet_ad
     throw new Error('Not authenticated');
   }
 
-  console.log('Making request to:', `${API_BASE_URL}/client/link-wallet`);
+  console.log('Making request to:', '/client/link-wallet');
   console.log('Request payload:', { wallet_address, wallet_network });
 
-  const res = await fetch(`${API_BASE_URL}/client/link-wallet`, {
+  const result = await apiFetch('/client/link-wallet', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({ wallet_address, wallet_network }),
   });
-
-  console.log('Response status:', res.status);
-  console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-
-  if (!res.ok) {
-    let errorMsg = 'Failed to link wallet';
-    try {
-      const err = await res.json();
-      errorMsg = err.message || errorMsg;
-      console.error('Error response:', err);
-    } catch (e) {
-      console.error('Failed to parse error response:', e);
-    }
-    throw new Error(errorMsg);
-  }
-
-  const result = await res.json();
   console.log('linkWallet success result:', result);
   return result;
 }
@@ -1992,34 +1803,13 @@ export async function resetClientWallet({
     throw new Error('Not authenticated');
   }
 
-  console.log('Making request to:', `${API_BASE_URL}/client/reset-wallet`);
+  console.log('Making request to:', '/client/reset-wallet');
   console.log('Request payload:', { client_id, reason, support_agent_id });
 
-  const res = await fetch(`${API_BASE_URL}/client/reset-wallet`, {
+  const result = await apiFetch('/client/reset-wallet', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({ client_id, reason, support_agent_id }),
   });
-
-  console.log('Response status:', res.status);
-  console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-
-  if (!res.ok) {
-    let errorMsg = 'Failed to reset wallet';
-    try {
-      const err = await res.json();
-      errorMsg = err.message || errorMsg;
-      console.error('Error response:', err);
-    } catch (e) {
-      console.error('Failed to parse error response:', e);
-    }
-    throw new Error(errorMsg);
-  }
-
-  const result = await res.json();
   console.log('resetClientWallet success result:', result);
   return result;
 }
@@ -2043,27 +1833,7 @@ export async function approveTransaction({
 
   // First, get the transaction details to check if token approval is needed
   console.log('Getting transaction details for approval...');
-  const transactionRes = await fetch(`${API_BASE_URL}/transfer/transaction/${transaction_id}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!transactionRes.ok) {
-    let errorMsg = 'Failed to get transaction details';
-    try {
-      const err = await transactionRes.json();
-      errorMsg = err.message || errorMsg;
-      console.error('Transaction details error response:', err);
-    } catch (e) {
-      console.error('Failed to parse transaction details error response:', e);
-    }
-    throw new Error(errorMsg);
-  }
-
-  const transaction = await transactionRes.json();
+  const transaction = await apiFetch(`/transfer/transaction/${transaction_id}`);
   console.log('Transaction details for approval:', transaction);
 
   // Check if the transaction has payout quote data that requires token approval
@@ -2093,34 +1863,13 @@ export async function approveTransaction({
 
   // If no token approval needed, proceed with the approval directly
   console.log('No token approval required, proceeding with transaction approval');
-  console.log('Making request to:', `${API_BASE_URL}/transfer/approve`);
+  console.log('Making request to:', '/transfer/approve');
   console.log('Request payload:', { transaction_id, wallet_address, reason });
 
-  const res = await fetch(`${API_BASE_URL}/transfer/approve`, {
+  const result = await apiFetch('/transfer/approve', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({ transaction_id, wallet_address, reason }),
   });
-
-  console.log('Response status:', res.status);
-  console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-
-  if (!res.ok) {
-    let errorMsg = 'Failed to approve transaction';
-    try {
-      const err = await res.json();
-      errorMsg = err.message || errorMsg;
-      console.error('Error response:', err);
-    } catch (e) {
-      console.error('Failed to parse error response:', e);
-    }
-    throw new Error(errorMsg);
-  }
-
-  const result = await res.json();
   console.log('approveTransaction success result:', result);
   return result;
 }
@@ -2142,34 +1891,13 @@ export async function completeTransactionApproval({
     throw new Error('Not authenticated');
   }
 
-  console.log('Making request to:', `${API_BASE_URL}/transfer/approve`);
+  console.log('Making request to:', '/transfer/approve');
   console.log('Request payload:', { transaction_id, wallet_address, reason });
 
-  const res = await fetch(`${API_BASE_URL}/transfer/approve`, {
+  const result = await apiFetch('/transfer/approve', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({ transaction_id, wallet_address, reason }),
   });
-
-  console.log('Response status:', res.status);
-  console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-
-  if (!res.ok) {
-    let errorMsg = 'Failed to approve transaction';
-    try {
-      const err = await res.json();
-      errorMsg = err.message || errorMsg;
-      console.error('Error response:', err);
-    } catch (e) {
-      console.error('Failed to parse error response:', e);
-    }
-    throw new Error(errorMsg);
-  }
-
-  const result = await res.json();
   console.log('completeTransactionApproval success result:', result);
   return result;
 }
@@ -2190,23 +1918,12 @@ export async function manuallyCompleteTransaction({
   console.log('manuallyCompleteTransaction called with:', { transaction_id, payout_id });
 
   try {
-    const response = await fetch(`${API_BASE_URL}/transfer/complete/${transaction_id}`, {
+    const result = await apiFetch(`/transfer/complete/${transaction_id}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify({
         payoutId: payout_id
       }),
     });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to manually complete transaction');
-    }
-
-    const result = await response.json();
     console.log('manuallyCompleteTransaction success result:', result);
     return result;
   } catch (error) {

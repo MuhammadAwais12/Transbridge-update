@@ -26,6 +26,7 @@ import {
   Globe
 } from 'lucide-react';
 import { useMSBTransactions, manuallyCompleteTransaction } from '../../hooks/useDatabase';
+import { apiFetch } from '../../lib/apiFetch';
 import { formatCurrency, formatTransactionAmount } from '../../lib/formatters';
 
 export default function TransactionManagement() {
@@ -50,15 +51,10 @@ export default function TransactionManagement() {
   // Transaction management functions
   const approveTransaction = async (transactionId: string) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/transaction/approve/${transactionId}`, {
+      await apiFetch(`/transaction/approve/${transactionId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
         body: JSON.stringify({ status: 'approved' }),
       });
-      if (!res.ok) throw new Error('Failed to approve transaction');
     } catch (error) {
       console.error('Error approving transaction:', error);
       throw error;
@@ -67,15 +63,10 @@ export default function TransactionManagement() {
 
   const rejectTransaction = async (transactionId: string, reason?: string) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/transaction/reject/${transactionId}`, {
+      await apiFetch(`/transaction/reject/${transactionId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
         body: JSON.stringify({ status: 'rejected', reason }),
       });
-      if (!res.ok) throw new Error('Failed to reject transaction');
     } catch (error) {
       console.error('Error rejecting transaction:', error);
       throw error;
@@ -84,15 +75,10 @@ export default function TransactionManagement() {
 
   const updateTransactionStatus = async (transactionId: string, status: string, reason?: string) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/transaction/update-status/${transactionId}`, {
+      await apiFetch(`/transaction/update-status/${transactionId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
         body: JSON.stringify({ status, reason }),
       });
-      if (!res.ok) throw new Error('Failed to update transaction status');
     } catch (error) {
       console.error('Error updating transaction status:', error);
       throw error;

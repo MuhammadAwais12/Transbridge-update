@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Copy, RefreshCcw, X, XCircle } from "lucide-react";
-import { API_BASE_URL } from "../../../lib/apiBase";
+import { apiFetch } from "../../../lib/apiFetch";
 import { PayinTransaction } from "../../../api/types";
 
 interface TransactionDetailsProps {
@@ -32,19 +32,9 @@ const TransactionDetails: React.FC<TransactionDetailsProps> =
         setError(null);
         
         try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(`${API_BASE_URL}/transaction/${transactionId}/payin`, {
-                headers: {
-                    'accept': '*/*',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
+            const data = await apiFetch<PayinTransaction>(`/transaction/${transactionId}/payin`, {
+                headers: { 'accept': '*/*' },
             });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch transaction: ${response.status}`);
-            }
-            
-            const data: PayinTransaction = await response.json();
             console.log('TransactionDetails: API response:', data);
             setTransaction(data);
         } catch (err) {

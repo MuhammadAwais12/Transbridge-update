@@ -6,6 +6,7 @@ import { Wallet } from '../msb-wallet/wallet.entity';
 import { ClientProfile } from '../client/client.entity';
 import * as crypto from 'crypto';
 import { WebhookGateway } from './webhook.gateway';
+import { providers } from '../config/providers.config';
 
 @Injectable()
 export class WebhookService {
@@ -21,19 +22,32 @@ export class WebhookService {
     private readonly webhookGateway: WebhookGateway,
   ) {}
 
-  verifySignature(headers: any, body: any): boolean {
+  /**
+   * Svix verification: HMAC-SHA256 over `${svix-id}.${svix-timestamp}.${raw body bytes}`
+   * with the base64 part of "whsec_<base64>", compared in constant time.
+   * `rawBody` must be the exact request bytes (req.rawBody), not a re-serialised req.body.
+   */
+  verifySignature(headers: any, rawBody: Buffer | undefined): boolean {
     const svixId = headers['svix-id'];
     const svixTimestamp = headers['svix-timestamp'];
     const svixSignature = headers['svix-signature'];
-    const secret = process.env.NEXT_PUBLIC_BLINDPAY_WEBHOOK_SECRET;
+    const secret = providers.blindpay.webhookSecret; // throws ProviderConfigError if unset
 
-    if (!svixId || !svixTimestamp || !svixSignature || !secret) {
-      this.logger.error('Missing webhook signature headers or secret');
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      this.logger.error('Missing webhook signature headers');
+      return false;
+    }
+    if (!rawBody || !Buffer.isBuffer(rawBody)) {
+      this.logger.error('Raw request body unavailable for webhook verification');
       return false;
     }
 
-    // Verify timestamp to prevent replay attacks
-    const timestamp = parseInt(svixTimestamp);
+    // Verify timestamp to prevent replay attacks (missing / non-numeric / outside 5 minutes)
+    if (!/^\d+$/.test(String(svixTimestamp))) {
+      this.logger.error('Webhook timestamp is missing or not a number');
+      return false;
+    }
+    const timestamp = Number(svixTimestamp);
     const now = Math.floor(Date.now() / 1000);
     const tolerance = 300; // 5 minutes
     if (Math.abs(now - timestamp) > tolerance) {
@@ -41,20 +55,23 @@ export class WebhookService {
       return false;
     }
 
-    // Verify signature according to BlindPay documentation
-    const signedContent = `${svixId}.${svixTimestamp}.${JSON.stringify(body)}`;
-    const secretBytes = Buffer.from(secret.split('_')[1], 'base64');
-    const expectedSignature = crypto
+    // Verify signature according to BlindPay (Svix) documentation, over the raw bytes
+    const secretBytes = Buffer.from(secret.startsWith('whsec_') ? secret.slice('whsec_'.length) : secret, 'base64');
+    const expected = crypto
       .createHmac('sha256', secretBytes)
-      .update(signedContent)
-      .digest('base64');
+      .update(`${svixId}.${svixTimestamp}.`)
+      .update(rawBody)
+      .digest();
 
-    // Check if any signature in the header matches
-    const signatures = svixSignature.split(' ');
-    const valid = signatures.some(sig => {
-      const cleanSig = sig.replace(/^v1,/, '');
-      return cleanSig === expectedSignature;
-    });
+    // Header is a space-separated list of "v1,<base64>"; any match is valid
+    const valid = String(svixSignature)
+      .split(' ')
+      .some((sig) => {
+        const [version, value] = sig.split(',', 2);
+        if (version !== 'v1' || !value) return false;
+        const given = Buffer.from(value, 'base64');
+        return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+      });
 
     if (!valid) {
       this.logger.error('Invalid webhook signature');

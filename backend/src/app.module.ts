@@ -10,7 +10,6 @@ import { TransferModule } from './transfer/transfer.module';
 import { VirtualAccountModule } from './virtual-account/virtual-account.module';
 import { WebhookController } from './webhook.controller';
 import { UploadModule } from './upload/upload.module';
-import { EmailModule } from './email/email.module';
 import { BridgeModule } from './integration/bridge/bridge.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AccessModule } from './auth/access.module';
@@ -75,7 +74,6 @@ function requireEnv(name: string): string {
     TransferModule,
     VirtualAccountModule,
     UploadModule,
-    EmailModule,
     BridgeModule,
   ],
   controllers: [AppController, WebhookController],

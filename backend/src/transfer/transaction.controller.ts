@@ -1,3 +1,4 @@
+import { providers } from '../config/providers.config';
 import { Controller, Get, Post, Query, Body, Logger, Param, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -271,12 +272,12 @@ export class TransactionController {
     if (!tx) throw new NotFoundException('Transaction not found');
     await this.access.assertClient(caller, tx.client_id);
     try {
-       const payinRes = await fetch(`${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v1/e/payins/${id}`, {
+       const payinRes = await fetch(`${providers.onlineBanking.url}/v1/e/payins/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-        'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+        'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+        'x-api-key': providers.onlineBanking.xApiKey ?? '',
       }});
 
      const payin = await payinRes.json();

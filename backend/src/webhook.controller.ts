@@ -1,4 +1,4 @@
-import { Controller, Post, Req, Res, HttpCode } from '@nestjs/common';
+import { Controller, Post, Req, Res, HttpCode, RawBodyRequest } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import { TransferService } from './transfer/transfer.service';
@@ -12,9 +12,10 @@ export class WebhookController {
   @Post()
   @HttpCode(200)
   @ApiOperation({ summary: 'Receive BlindPay webhook events' })
-  async webhook(@Req() req: Request, @Res() res: Response) {
+  async webhook(@Req() req: RawBodyRequest<Request>, @Res() res: Response) {
     try {
-      await this.transferService.handleWebhook(req.body, req.headers);
+      // req.rawBody is populated because main.ts creates the app with rawBody: true
+      await this.transferService.handleWebhook(req.body, req.headers, req.rawBody);
       res.status(200).send('OK');
     } catch (err) {
       console.error('Webhook processing failed:', err);

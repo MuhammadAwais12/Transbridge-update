@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Eye, EyeOff, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_BASE_URL } from '../../lib/apiBase';
+import { apiFetch, ApiError } from '../../lib/apiFetch';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -66,34 +66,25 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/client/change-password`, {
+      // Backend answers 401 for a wrong current password, so don't log the user out on 401 here
+      await apiFetch('/client/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
         body: JSON.stringify({
           currentPassword,
           newPassword,
         }),
+        skipAuthRedirect: true,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setError('Current password is incorrect');
-        } else {
-          setError(data.message || 'Failed to change password');
-        }
-        return;
-      }
 
       // Success
       onSuccess();
       onClose();
     } catch (err) {
-      setError('Network error. Please try again.');
+      if (err instanceof ApiError) {
+        setError(err.status === 401 ? 'Current password is incorrect' : err.message || 'Failed to change password');
+      } else {
+        setError('Network error. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

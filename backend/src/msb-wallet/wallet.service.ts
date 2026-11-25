@@ -1,3 +1,4 @@
+import { providers } from '../config/providers.config';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -25,7 +26,7 @@ export class WalletService {
     }
 
     // Step 1: Get the message to sign from BlindPay API
-    const signMessageUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/receivers/${client.blindpay_receiver_id}/blockchain-wallets/sign-message`;
+    const signMessageUrl = `${providers.onlineBanking.url}/v2/instances/${providers.blindpay.instanceId}/receivers/${client.blindpay_receiver_id}/blockchain-wallets/sign-message`;
     
     console.log('Getting sign message from BlindPay API:', signMessageUrl);
     
@@ -34,8 +35,8 @@ export class WalletService {
       const signMessageResponse = await fetch(signMessageUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
       });
       
@@ -58,7 +59,7 @@ export class WalletService {
     const signature_tx_hash = this.generateSignature(messageToSign);
     console.log('Generated signature:', signature_tx_hash);
 
-    const apiUrl = `${process.env.NEXT_PUBLIC_ONLINE_BANKING_URL}/v2/instances/${process.env.NEXT_PUBLIC_BLINDPAY_INSTANCE_ID}/receivers/${client.blindpay_receiver_id}/blockchain-wallets`;
+    const apiUrl = `${providers.onlineBanking.url}/v2/instances/${providers.blindpay.instanceId}/receivers/${client.blindpay_receiver_id}/blockchain-wallets`;
     
     // Prepare payload for online banking API
     const payload: any = {
@@ -97,8 +98,8 @@ export class WalletService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_BLINDPAY_API_KEY}`,
-          'x-api-key': process.env.NEXT_PUBLIC_ONLINE_BANKING_X_API_KEY || '',
+          'Authorization': `Bearer ${providers.blindpay.apiKey}`,
+          'x-api-key': providers.onlineBanking.xApiKey ?? '',
         },
         body: JSON.stringify(payload),
       });
