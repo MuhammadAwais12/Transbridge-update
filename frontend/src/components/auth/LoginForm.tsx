@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Shield, Eye, EyeOff, Building2, User } from 'lucide-react';
+import { Eye, EyeOff, Building2, User } from 'lucide-react';
+import { brand } from '../../config/brand';
 
 // Demo credentials with proper MSB relationships
 const STATIC_DEMO_CREDENTIALS = [
@@ -205,11 +206,14 @@ export default function LoginForm() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-primary-600 rounded-xl flex items-center justify-center mb-4">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Original Banking</h1>
-            <p className="text-gray-600 mt-2">Secure MSB Banking Platform</p>
+            {/* Official Glacier Crest vertical logo (full colour, for light backgrounds) */}
+            <img
+              src={brand.logos.vertical}
+              alt={brand.name}
+              className="mx-auto h-28 w-auto mb-4"
+            />
+            <h1 className="sr-only">{brand.name}</h1>
+            <p className="text-gray-600">Sign in to your account</p>
           </div>
 
           {/* User Type Selector */}

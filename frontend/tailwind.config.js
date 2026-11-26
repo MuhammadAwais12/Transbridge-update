@@ -1,50 +1,38 @@
+import { brand, colorShades, SHADE_KEYS } from './src/config/brand.ts';
+
+/** primary-50 ... primary-950 -> var(--color-primary-50) ... (no opacity modifiers are used on these). */
+const varShades = (name) => Object.fromEntries(SHADE_KEYS.map((k) => [k, `var(--color-${name}-${k})`]));
+
+/** Default values for those variables, generated from brand.ts (BrandingContext overrides them at runtime). */
+const defaultColorVars = Object.fromEntries(
+  Object.entries({ primary: brand.theme.primary, secondary: brand.theme.secondary, accent: brand.theme.accent }).flatMap(
+    ([name, hex]) => Object.entries(colorShades(hex)).map(([k, v]) => [`--color-${name}-${k}`, v]),
+  ),
+);
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: brand.fonts.body,
+        heading: brand.fonts.heading,
       },
       colors: {
-        primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
-        },
-        secondary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
-        },
-        accent: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
-          950: '#431407',
+        // Theme roles: CSS variables set by BrandingContext (MSB branding), defaults from brand.ts (see plugin below)
+        primary: varShades('primary'),
+        secondary: varShades('secondary'),
+        accent: varShades('accent'),
+        // Glacier Crest palette (fixed brand colours)
+        brand: {
+          'royal-blue': brand.colors.royalBlue,
+          'slate-charcoal': brand.colors.slateCharcoal,
+          'deep-black': brand.colors.deepBlack,
+          'warm-stone': brand.colors.warmStone,
+          periwinkle: brand.colors.periwinkleBlue,
+          'vivid-red': brand.colors.vividRed,
+          'soft-ice-blue': brand.colors.softIceBlue,
         },
         success: {
           50: '#f0fdf4',
@@ -109,5 +97,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    ({ addBase }) => addBase({ ':root': defaultColorVars }),
+  ],
 };

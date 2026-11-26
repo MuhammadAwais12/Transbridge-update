@@ -16,6 +16,7 @@ import {
   Loader
 } from 'lucide-react';
 import { usePaymentProviders } from '../../hooks/usePaymentProviders';
+import { useBranding } from '../../contexts/BrandingContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 // Mock data for charts
@@ -84,6 +85,7 @@ const recentPayments = [
 ];
 
 export default function PaymentDashboard() {
+  const { branding } = useBranding();
   const { providers, loading } = usePaymentProviders();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -251,9 +253,9 @@ export default function PaymentDashboard() {
               <Line 
                 type="monotone" 
                 dataKey="volume" 
-                stroke="#3b82f6" 
+                stroke={branding.primaryColor} 
                 strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                dot={{ fill: branding.primaryColor, strokeWidth: 2, r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -273,7 +275,7 @@ export default function PaymentDashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="provider" />
               <YAxis />
-              <Bar dataKey="volume" fill="#22c55e" name="Volume" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="volume" fill={branding.accentColor} name="Volume" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

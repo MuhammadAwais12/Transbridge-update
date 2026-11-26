@@ -11,7 +11,7 @@ export class ResetPassword {
   @Column({ default: false })
   used: boolean;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 }
 

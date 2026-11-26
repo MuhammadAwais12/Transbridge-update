@@ -13,7 +13,7 @@ import * as bcrypt from 'bcrypt';
 import * as speakeasy from 'speakeasy';
 import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
-import { ClientUser, ClientProfile } from './client.entity';
+import { ClientProfile } from './client.entity';
 import { Account } from './account.entity';
 import { Beneficiary } from './beneficiary.entity';
 import { Transaction } from './transaction.entity';
@@ -29,14 +29,14 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { WalletService } from '../msb-wallet/wallet.service';
 import { UpdateClientProfileDto } from './dto/account.dto';
 import { BridgeService } from 'src/integration/bridge/bridge.service';
-import { Msb } from 'src/msb-admin/msb-admin.entity';
+import { Msb, User } from 'src/msb-admin/msb-admin.entity';
 import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class ClientService {
   constructor(
-    @InjectRepository(ClientUser)
-    private readonly userRepository: Repository<ClientUser>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @InjectRepository(ClientProfile)
     private readonly clientRepository: Repository<ClientProfile>,
     @InjectRepository(Account)

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useBranding } from '../../contexts/BrandingContext';
+import { brand } from '../../config/brand';
 import { Upload, Eye, Save, RotateCcw, Palette, Type, Layout, Check } from 'lucide-react';
 
 const colorPresets = [
+  { name: brand.name, primary: brand.theme.primary, secondary: brand.theme.secondary, accent: brand.theme.accent },
   { name: 'Corporate Blue', primary: '#3b82f6', secondary: '#22c55e', accent: '#f97316' },
   { name: 'Financial Green', primary: '#059669', secondary: '#3b82f6', accent: '#f59e0b' },
   { name: 'Modern Purple', primary: '#8b5cf6', secondary: '#06b6d4', accent: '#f97316' },
@@ -60,7 +62,7 @@ export default function BrandingCustomization() {
     // This handler is used by color pickers (always valid #RRGGBB)
     const normalized = normalizeHex(value);
     if (!isValidHex(normalized)) {
-      setColorError('Please provide a valid hex color, e.g. #3b82f6');
+      setColorError(`Please provide a valid hex color, e.g. ${brand.theme.primary}`);
       return;
     }
     setColorError(null);
@@ -74,7 +76,7 @@ export default function BrandingCustomization() {
   const commitTextColor = (colorType: 'primaryColor' | 'secondaryColor' | 'accentColor', value: string) => {
     const normalized = normalizeHex(value);
     if (!isValidHex(normalized)) {
-      setColorError('Please provide a valid hex color, e.g. #3b82f6');
+      setColorError(`Please provide a valid hex color, e.g. ${brand.theme.primary}`);
       return;
     }
     setColorError(null);
@@ -113,9 +115,9 @@ export default function BrandingCustomization() {
 
   const resetToDefaults = () => {
     updateBranding({
-      primaryColor: '#3b82f6',
-      secondaryColor: '#22c55e',
-      accentColor: '#f97316',
+      primaryColor: brand.theme.primary,
+      secondaryColor: brand.theme.secondary,
+      accentColor: brand.theme.accent,
       logoUrl: undefined
     });
     setLogoPreview(null);
@@ -323,7 +325,7 @@ export default function BrandingCustomization() {
                       onChange={(e) => { setPrimaryInput(e.target.value); setHasUnsavedChanges(true); }}
                       onBlur={() => commitTextColor('primaryColor', primaryInput)}
                       className="flex-1 input-field text-sm"
-                      placeholder="#3b82f6"
+                      placeholder={brand.theme.primary}
                     />
                   </div>
                 </div>
@@ -345,7 +347,7 @@ export default function BrandingCustomization() {
                       onChange={(e) => { setSecondaryInput(e.target.value); setHasUnsavedChanges(true); }}
                       onBlur={() => commitTextColor('secondaryColor', secondaryInput)}
                       className="flex-1 input-field text-sm"
-                      placeholder="#22c55e"
+                      placeholder={brand.theme.secondary}
                     />
                   </div>
                 </div>
@@ -367,7 +369,7 @@ export default function BrandingCustomization() {
                       onChange={(e) => { setAccentInput(e.target.value); setHasUnsavedChanges(true); }}
                       onBlur={() => commitTextColor('accentColor', accentInput)}
                       className="flex-1 input-field text-sm"
-                      placeholder="#f97316"
+                      placeholder={brand.theme.accent}
                     />
                   </div>
                 </div>

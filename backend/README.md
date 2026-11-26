@@ -31,6 +31,31 @@
 $ yarn install
 ```
 
+## Database setup and migrations
+
+The schema is managed by TypeORM migrations in `src/migrations` (CLI config: `src/data-source.ts`).
+Keep `DB_SYNC=false`; schema changes go through migrations.
+
+Fresh database, in this order:
+
+1. Create an empty PostgreSQL database, e.g. `createdb transbridge`.
+2. Copy `.env.example` to `.env` and set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` (plus `JWT_SECRET` and the rest), with `DB_SYNC=false`.
+3. Create the schema: `yarn migration:run`.
+4. Start the app: `yarn start:dev` (or `yarn build && yarn start:prod`).
+
+New migration after changing an entity:
+
+```bash
+# writes src/migrations/<timestamp>-<Name>.ts from the diff between the entities and the database in .env
+$ yarn migration:generate src/migrations/AddSomething
+# preview only, no file written
+$ yarn migration:generate src/migrations/AddSomething --dr
+$ yarn migration:run      # apply pending migrations
+$ yarn migration:revert   # undo the most recent one
+```
+
+Generate against a database that is up to date with the existing migrations, and review the generated SQL before committing.
+
 ## Compile and run the project
 
 ```bash

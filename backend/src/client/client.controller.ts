@@ -30,7 +30,8 @@ import {
 import { Enable2faDto } from './dto/enable-2fa.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ClientProfile, ClientUser } from './client.entity';
+import { ClientProfile } from './client.entity';
+import { User } from '../msb-admin/msb-admin.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateClientProfileDto } from './dto/account.dto';
 import { GetByMsbDto } from './dto/get-by-msb.dto';
@@ -224,7 +225,7 @@ export class ClientController {
 
     // Check if the user is an MSB admin (only MSB admins can reset wallets)
     const user = await this.clientProfileRepository.manager
-      .getRepository(ClientUser)
+      .getRepository(User)
       .findOne({
         where: { id: userId },
       });

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { BrandingConfig, MSB } from '../types';
 import { useAuth } from './AuthContext';
 import { apiFetch } from '../lib/apiFetch';
+import { brand, colorShades } from '../config/brand';
 
 interface BrandingContextType {
   branding: BrandingConfig;
@@ -12,12 +13,14 @@ interface BrandingContextType {
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
-// Default branding config
+// Default branding (Glacier Crest, from src/config/brand.ts), used when no MSB branding is loaded.
+// logoUrl stays undefined: components fall back to the static brand logo in public/brand/, so the
+// default logo is never written to an MSB record by updateBranding.
 const defaultBranding: BrandingConfig = {
-  primaryColor: '#3b82f6',
-  secondaryColor: '#22c55e',
-  accentColor: '#f97316',
-  theme: 'light',
+  primaryColor: brand.theme.primary,
+  secondaryColor: brand.theme.secondary,
+  accentColor: brand.theme.accent,
+  theme: brand.theme.mode,
   logoUrl: undefined
 };
 
@@ -141,31 +144,19 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove('dark');
     }
-    // Compute a range of primary shades so commonly used utility classes map correctly
-    root.style.setProperty('--color-primary-50', adjustBrightness(brandingConfig.primaryColor, 65));
-    root.style.setProperty('--color-primary-100', adjustBrightness(brandingConfig.primaryColor, 50));
-    root.style.setProperty('--color-primary-200', adjustBrightness(brandingConfig.primaryColor, 35));
-    root.style.setProperty('--color-primary-300', adjustBrightness(brandingConfig.primaryColor, 20));
-    root.style.setProperty('--color-primary-400', adjustBrightness(brandingConfig.primaryColor, 10));
-    root.style.setProperty('--color-primary-500', brandingConfig.primaryColor);
-    root.style.setProperty('--color-primary-600', adjustBrightness(brandingConfig.primaryColor, -20));
-    root.style.setProperty('--color-primary-700', adjustBrightness(brandingConfig.primaryColor, -40));
-    root.style.setProperty('--color-primary-800', adjustBrightness(brandingConfig.primaryColor, -55));
-    root.style.setProperty('--color-primary-900', adjustBrightness(brandingConfig.primaryColor, -70));
-    root.style.setProperty('--color-secondary-500', brandingConfig.secondaryColor);
-    root.style.setProperty('--color-accent-500', brandingConfig.accentColor);
-    
-    // Also update Tailwind CSS custom properties
-    root.style.setProperty('--tw-color-primary-50', getComputedStyle(root).getPropertyValue('--color-primary-50'));
-    root.style.setProperty('--tw-color-primary-100', getComputedStyle(root).getPropertyValue('--color-primary-100'));
-    root.style.setProperty('--tw-color-primary-200', getComputedStyle(root).getPropertyValue('--color-primary-200'));
-    root.style.setProperty('--tw-color-primary-300', getComputedStyle(root).getPropertyValue('--color-primary-300'));
-    root.style.setProperty('--tw-color-primary-400', getComputedStyle(root).getPropertyValue('--color-primary-400'));
-    root.style.setProperty('--tw-color-primary-500', brandingConfig.primaryColor);
-    root.style.setProperty('--tw-color-primary-600', adjustBrightness(brandingConfig.primaryColor, -20));
-    root.style.setProperty('--tw-color-primary-700', adjustBrightness(brandingConfig.primaryColor, -40));
-    root.style.setProperty('--tw-color-secondary-500', brandingConfig.secondaryColor);
-    root.style.setProperty('--tw-color-accent-500', brandingConfig.accentColor);
+    // Full 50-950 scales for each role (same shade function as the Tailwind defaults in brand.ts);
+    // the primary-*/secondary-*/accent-* Tailwind colours read these variables.
+    const roles = {
+      primary: brandingConfig.primaryColor || defaultBranding.primaryColor,
+      secondary: brandingConfig.secondaryColor || defaultBranding.secondaryColor,
+      accent: brandingConfig.accentColor || defaultBranding.accentColor,
+    };
+    for (const [role, hex] of Object.entries(roles)) {
+      for (const [shade, value] of Object.entries(colorShades(hex))) {
+        root.style.setProperty(`--color-${role}-${shade}`, value);
+        root.style.setProperty(`--tw-color-${role}-${shade}`, value);
+      }
+    }
   };
 
   useEffect(() => {
@@ -203,13 +194,3 @@ export function useBranding() {
   return context;
 }
 
-function adjustBrightness(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = (num >> 16) + amt;
-  const G = (num >> 8 & 0x00FF) + amt;
-  const B = (num & 0x0000FF) + amt;
-  return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-    (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-}

@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ClientService } from './client.service';
-import { ClientUser, ClientProfile } from './client.entity';
+import { ClientProfile } from './client.entity';
 import { Account } from './account.entity';
 import { Beneficiary } from './beneficiary.entity';
 import { Transaction } from './transaction.entity';
@@ -12,12 +12,12 @@ import { jwtSecret } from '../auth/jwt-secret';
 import { WalletModule } from '../msb-wallet/wallet.module';
 import { BridgeModule } from 'src/integration/bridge/bridge.module';
 import { EmailModule } from '../email/email.module';
-import { Msb } from 'src/msb-admin/msb-admin.entity';
+import { Msb, User } from 'src/msb-admin/msb-admin.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      ClientUser,
+      User,
       ClientProfile,
       Account,
       Beneficiary,

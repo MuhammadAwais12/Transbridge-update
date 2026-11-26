@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBranding } from '../../contexts/BrandingContext';
+import { brand } from '../../config/brand';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import WalletConnectModal from '../auth/WalletConnectModal';
 import { 
@@ -200,14 +201,17 @@ export default function Sidebar() {
                   className="w-full h-full object-contain"
                 />
               ) : (
-                <span className="text-white font-bold text-lg" style={{ backgroundColor: branding.primaryColor }}>
-                  {msb?.name?.charAt(0) || 'O'}
-                </span>
+                // Default: official Glacier Crest symbol (static file, never an uploaded/S3 URL)
+                <img
+                  src={brand.logos.symbol}
+                  alt={brand.name}
+                  className="w-full h-full object-contain"
+                />
               )}
             </div>
             <div>
               <h2 className="font-semibold text-gray-900">
-                {user?.role === 'msb_admin' ? 'Original Banking' : msb?.name || 'Banking Portal'}
+                {user?.role === 'msb_admin' ? brand.name : msb?.name || brand.name}
               </h2>
               <p className="text-xs text-gray-600">
                 {user?.role === 'msb_admin' ? 'MSB Platform' : 'Online Banking'}
@@ -330,7 +334,7 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="p-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 text-center">
-            © {new Date().getFullYear()} Original Banking
+            © {new Date().getFullYear()} {brand.name}
             <br />
             Version 1.0.0
           </div>

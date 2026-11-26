@@ -1,50 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
-@Entity('users')
-export class ClientUser {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'uuid', nullable: true })
-  msb_id: string;
-
-  @Column({ unique: true, length: 254 })
-  email: string;
-
-  @Column({ length: 100 })
-  name: string;
-
-  @Column({ length: 20 })
-  role: string; // 'account_holder'
-
-  @Column({ default: true })
-  is_active: boolean;
-
-  @Column({ nullable: true })
-  last_login: Date;
-
-  @Column({ nullable: true, length: 255 })
-  password_hash: string;
-
-  @Column({ default: false })
-  twofa_enabled: boolean;
-
-  @Column({ nullable: true, length: 64 })
-  twofa_secret: string;
-
-  @Column('varchar', { array: true, nullable: true })
-  twofa_backup_codes: string[];
-
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at: Date;
-
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  updated_at: Date;
-
-  @Column({ default: false })
-  password_changed: boolean;
-}
-
 @Entity('clients')
 export class ClientProfile {
   @PrimaryGeneratedColumn('uuid')
@@ -177,13 +132,13 @@ export class ClientProfile {
   @Column({ default: 'low', length: 20 })
   risk_level: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   kyc_completed_at: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 
   // Wallet fields added by migration
@@ -193,7 +148,7 @@ export class ClientProfile {
   @Column({ nullable: true, length: 50 })
   wallet_network: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   wallet_connected_at: Date;
 
   @Column({ nullable: true, length: 100 })

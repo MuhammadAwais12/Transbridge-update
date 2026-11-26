@@ -32,10 +32,10 @@ export class Msb {
   @Column({ type: 'jsonb', default: '{}' })
   settings: any;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 
   @Column({ length: 255, nullable: true })
@@ -65,7 +65,7 @@ export class User {
   @Column({ default: true })
   is_active: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   last_login: Date;
 
   @Column({ nullable: true, length: 255 })
@@ -80,11 +80,14 @@ export class User {
   @Column('varchar', { array: true, nullable: true })
   twofa_backup_codes: string[];
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
+
+  @Column({ type: 'boolean', default: false })
+  password_changed: boolean;
 }
 
 @Entity('activity')

@@ -4,6 +4,7 @@ import { Users, CreditCard, ArrowLeftRight, Shield, TrendingUp, AlertTriangle, D
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useClients, useAccounts, useDashboardTransactions, useComplianceAlerts } from '../../hooks/useDatabase';
 import { formatCurrency } from '../../lib/formatters';
+import { useBranding } from '../../contexts/BrandingContext';
 
 // Generate transaction data for the last 6 months based on actual transactions
 const generateTransactionData = (transactions: any[]) => {
@@ -38,6 +39,7 @@ const generateTransactionData = (transactions: any[]) => {
 
 export default function MSBDashboard() {
   const navigate = useNavigate();
+  const { branding } = useBranding();
   const { clients, loading: clientsLoading } = useClients();
   const { accounts, loading: accountsLoading } = useAccounts();
   const { transactions, loading: transactionsLoading } = useDashboardTransactions(); // Get transactions for dashboard stats
@@ -199,9 +201,9 @@ export default function MSBDashboard() {
                 <Line 
                   type="monotone" 
                   dataKey="volume" 
-                  stroke="#3b82f6" 
+                  stroke={branding.primaryColor} 
                   strokeWidth={3}
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: branding.primaryColor, strokeWidth: 2, r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -236,7 +238,7 @@ export default function MSBDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Bar dataKey="transactions" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="transactions" fill={branding.accentColor} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
