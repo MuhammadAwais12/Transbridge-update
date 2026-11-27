@@ -16,6 +16,7 @@ import { CreateMsbAdminDto } from './dto/create-msb-admin.dto';
 import { LoginMsbAdminDto } from './dto/login-msb-admin.dto';
 import { UpdateBrandingDto } from './dto/update-branding.dto';
 import { EmailService } from '../email/email.service';
+import { brand } from '../config/brand.config';
 import { UploadService } from '../upload/upload.service';
 
 // bcrypt has proper type definitions; use direct calls and suppress strict unsafe-call/member-access for these lines only
@@ -112,9 +113,7 @@ export class MsbAdminService {
     });
     await this.userRepository.save(user);
     // Send welcome email to the newly created MSB admin (non-blocking for registration)
-    const loginUrl =
-      process.env.DASHBOARD_LOGIN_URL ||
-      'https://dashboard.originalaccounts.com/login';
+    const loginUrl = brand.dashboardLoginUrl;
     try {
       const emailResult = await this.emailService.sendWelcomeEmail({
         fullName: name,
@@ -272,7 +271,9 @@ export class MsbAdminService {
     if (!user) throw new UnauthorizedException('User not found');
 
     const appName =
-      user.role === 'msb_admin' ? 'Transbridge Admin' : 'Transbridge Client';
+      user.role === 'msb_admin'
+        ? `${brand.companyName} Admin`
+        : `${brand.companyName} Client`;
     const secret = speakeasy.generateSecret({
       name: `${appName} (${user.email})`,
       length: 20,

@@ -43,7 +43,7 @@ export class WelcomeEmailDto {
 
   @ApiProperty({
     description: 'Login URL for the user to access their account',
-    example: 'https://dashboard.originalaccounts.com/login',
+    example: 'https://dashboard.example.com/login',
   })
   @IsNotEmpty()
   @IsString()

@@ -31,6 +31,7 @@ import { UpdateClientProfileDto } from './dto/account.dto';
 import { BridgeService } from 'src/integration/bridge/bridge.service';
 import { Msb, User } from 'src/msb-admin/msb-admin.entity';
 import { EmailService } from '../email/email.service';
+import { brand } from '../config/brand.config';
 
 @Injectable()
 export class ClientService {
@@ -414,7 +415,7 @@ export class ClientService {
         const baseUrl =
           process.env.NEXT_PUBLIC_DASHBOARD_URL ||
           process.env.DASHBOARD_URL ||
-          'https://dashboard.originalaccounts.com';
+          brand.dashboardOrigin;
         const termsOfServiceUrl = tosUrl || `${baseUrl}/terms`;
         const customerDetailsUrl = kycUrl || `${baseUrl}/kyc`;
 
@@ -598,7 +599,9 @@ export class ClientService {
     if (!user) throw new UnauthorizedException('User not found');
 
     const appName =
-      user.role === 'msb_admin' ? 'Transbridge Admin' : 'Transbridge Client';
+      user.role === 'msb_admin'
+        ? `${brand.companyName} Admin`
+        : `${brand.companyName} Client`;
     const secret = speakeasy.generateSecret({
       name: `${appName} (${user.email})`,
       length: 20,
@@ -1413,9 +1416,7 @@ export class ClientService {
     await this.resetPasswordRepository.save(resetPassword);
 
     // Generate reset link with token (using the id as token)
-    const frontendUrl =
-      process.env.FRONTEND_URL ||
-      'https://dashboard-staging.originalaccounts.com';
+    const frontendUrl = process.env.FRONTEND_URL || brand.dashboardOrigin;
     const resetLink = `${frontendUrl}/reset-password?token=${resetPassword.id}`;
 
     // Send reset password email

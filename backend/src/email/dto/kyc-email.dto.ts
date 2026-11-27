@@ -12,7 +12,7 @@ export class KycEmailDto {
 
   @ApiProperty({
     description: 'URL for accepting terms of service',
-    example: 'https://dashboard.originalaccounts.com/terms',
+    example: 'https://dashboard.example.com/terms',
   })
   @IsNotEmpty()
   @IsUrl()
@@ -20,7 +20,7 @@ export class KycEmailDto {
 
   @ApiProperty({
     description: 'URL for adding customer details for KYC',
-    example: 'https://dashboard.originalaccounts.com/kyc',
+    example: 'https://dashboard.example.com/kyc',
   })
   @IsNotEmpty()
   @IsUrl()

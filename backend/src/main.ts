@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { brand } from './config/brand.config';
 
 async function bootstrap() {
   if (process.env.NODE_ENV === 'production') {
@@ -42,7 +43,7 @@ async function bootstrap() {
   app.enableCors({ origin: allowedOrigins, credentials: true });
 
   const config = new DocumentBuilder()
-    .setTitle('Transbridge MSB API')
+    .setTitle(`${brand.companyName} MSB API`)
     .setDescription(
       'API documentation for MSB admin authentication and management',
     )

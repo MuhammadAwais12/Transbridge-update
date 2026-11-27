@@ -3,6 +3,16 @@ import { Resend } from 'resend';
 import { WelcomeEmailDto } from './dto/welcome-email.dto';
 import { KycEmailDto } from './dto/kyc-email.dto';
 import { ResetPasswordEmailDto } from './dto/reset-password-email.dto';
+import { brand } from '../config/brand.config';
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 @Injectable()
 export class EmailService {
@@ -16,6 +26,25 @@ export class EmailService {
       this.logger.warn('RESEND_API_KEY not found in environment variables');
     }
     this.resend = new Resend(apiKey);
+    if (!process.env.EMAIL_FROM_ADDRESS?.trim()) {
+      this.logger.warn(
+        `EMAIL_FROM_ADDRESS not set; sending from ${brand.emailFromAddress}`,
+      );
+    }
+  }
+
+  private resolveCompanyName(): string {
+    if (!brand.isCompanyNameConfigured) {
+      this.logger.warn('COMPANY_NAME not found in environment variables');
+    }
+    return brand.companyName;
+  }
+
+  /** Logo block for the email header; empty when EMAIL_LOGO_URL is unset. */
+  private logoHtml(companyName: string): string {
+    const logoUrl = brand.emailLogoUrl;
+    if (!logoUrl) return '';
+    return `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="max-height: 48px; max-width: 200px; margin-bottom: 10px;">`;
   }
 
   async sendWelcomeEmail(
@@ -25,12 +54,7 @@ export class EmailService {
       // Extract first name from full name
       const firstName = welcomeEmailDto.fullName.split(' ')[0];
 
-      // Resolve company name from environment
-      const companyNameFromEnv = process.env.COMPANY_NAME;
-      if (!companyNameFromEnv) {
-        this.logger.warn('COMPANY_NAME not found in environment variables');
-      }
-      const companyName = companyNameFromEnv ?? 'Your Company';
+      const companyName = this.resolveCompanyName();
 
       // Create the email content using the template
       const htmlContent = this.generateWelcomeEmailHtml(
@@ -55,12 +79,12 @@ export class EmailService {
 
       // Send email using Resend
       const result = await this.resend.emails.send({
-        from: 'noreply@transbridgeusa.com',
+        from: brand.emailFrom,
         to: [welcomeEmailDto.email],
         subject: `Welcome to ${companyName} - Your Account is Ready!`,
         html: htmlContent,
         text: textContent,
-        replyTo: 'support@transbridgeusa.com',
+        replyTo: brand.supportEmail,
       });
 
       // Handle Resend response properly
@@ -101,12 +125,7 @@ export class EmailService {
     kycEmailDto: KycEmailDto,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      // Resolve company name from environment
-      const companyNameFromEnv = process.env.COMPANY_NAME;
-      if (!companyNameFromEnv) {
-        this.logger.warn('COMPANY_NAME not found in environment variables');
-      }
-      const companyName = companyNameFromEnv ?? 'Your Company';
+      const companyName = this.resolveCompanyName();
 
       // Create the email content using the template
       const htmlContent = this.generateKycEmailHtml(
@@ -125,12 +144,12 @@ export class EmailService {
 
       // Send email using Resend
       const result = await this.resend.emails.send({
-        from: 'noreply@transbridgeusa.com',
+        from: brand.emailFrom,
         to: [kycEmailDto.email],
         subject: `Complete Your KYC Process - ${companyName}`,
         html: htmlContent,
         text: textContent,
-        replyTo: 'support@transbridgeusa.com',
+        replyTo: brand.supportEmail,
       });
 
       // Handle Resend response properly
@@ -188,13 +207,14 @@ export class EmailService {
           .header { background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
           .content { background-color: #ffffff; padding: 20px; border: 1px solid #e9ecef; border-radius: 8px; }
           .account-details { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .cta-button { display: inline-block; background-color: #007bff; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+          .cta-button { display: inline-block; background-color: ${brand.primaryColor}; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
           .support { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
       </head>
       <body>
         <div class="header">
+          ${this.logoHtml(companyName)}
           <h1>Welcome to ${companyName}!</h1>
         </div>
         
@@ -216,7 +236,7 @@ export class EmailService {
           <a href="${loginUrl}" class="cta-button">Login to Your Account</a>
           
           <div class="support">
-            <p><strong>Important:</strong> If you didn't create this account or believe this was done in error, please contact our support team immediately at <a href="mailto:support@transbridgeusa.com">support@transbridgeusa.com</a></p>
+            <p><strong>Important:</strong> If you didn't create this account or believe this was done in error, please contact our support team immediately at <a href="mailto:${escapeHtml(brand.supportEmail)}">${escapeHtml(brand.supportEmail)}</a></p>
           </div>
           
           <p>We're excited to have you with us!</p>
@@ -251,7 +271,7 @@ Account ID: ${accountId}${password ? `\nPassword: ${password}` : ''}
 
 You can log in any time at: ${loginUrl}
 
-If you didn't create this account or believe this was done in error, please contact our support team immediately at support@transbridgeusa.com
+If you didn't create this account or believe this was done in error, please contact our support team immediately at ${brand.supportEmail}
 
 We're excited to have you with us!
 
@@ -278,17 +298,18 @@ The ${companyName} Team
           .header { background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
           .content { background-color: #ffffff; padding: 20px; border: 1px solid #e9ecef; border-radius: 8px; }
           .action-buttons { margin: 30px 0; text-align: center; }
-          .cta-button { display: inline-block; background-color: #007bff; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px; font-weight: bold; }
+          .cta-button { display: inline-block; background-color: ${brand.primaryColor}; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px; font-weight: bold; }
           .cta-button.secondary { background-color: #6c757d; }
           .cta-button:hover { opacity: 0.9; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
           .important { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .steps { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
-          .step { margin: 10px 0; padding: 10px; background-color: #ffffff; border-radius: 3px; border-left: 4px solid #007bff; }
+          .step { margin: 10px 0; padding: 10px; background-color: #ffffff; border-radius: 3px; border-left: 4px solid ${brand.primaryColor}; }
         </style>
       </head>
       <body>
         <div class="header">
+          ${this.logoHtml(companyName)}
           <h1>Complete Your KYC Process</h1>
           <p>${companyName}</p>
         </div>
@@ -319,7 +340,7 @@ The ${companyName} Team
             <p><strong>Important:</strong> You must complete both steps to fully activate your account and access all features of our platform.</p>
           </div>
           
-          <p>If you have any questions or need assistance, please don't hesitate to contact our support team at <a href="mailto:support@transbridgeusa.com">support@transbridgeusa.com</a>.</p>
+          <p>If you have any questions or need assistance, please don't hesitate to contact our support team at <a href="mailto:${escapeHtml(brand.supportEmail)}">${escapeHtml(brand.supportEmail)}</a>.</p>
           
           <p>We look forward to serving you!</p>
         </div>
@@ -355,7 +376,7 @@ Link: ${customerDetailsUrl}
 
 IMPORTANT: You must complete both steps to fully activate your account and access all features of our platform.
 
-If you have any questions or need assistance, please don't hesitate to contact our support team at support@transbridgeusa.com.
+If you have any questions or need assistance, please don't hesitate to contact our support team at ${brand.supportEmail}.
 
 We look forward to serving you!
 
@@ -368,12 +389,7 @@ The ${companyName} Team
     resetPasswordEmailDto: ResetPasswordEmailDto,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      // Resolve company name from environment
-      const companyNameFromEnv = process.env.COMPANY_NAME;
-      if (!companyNameFromEnv) {
-        this.logger.warn('COMPANY_NAME not found in environment variables');
-      }
-      const companyName = companyNameFromEnv ?? 'Your Company';
+      const companyName = this.resolveCompanyName();
 
       // Create the email content using the template
       const htmlContent = this.generateResetPasswordEmailHtml(
@@ -390,12 +406,12 @@ The ${companyName} Team
 
       // Send email using Resend
       const result = await this.resend.emails.send({
-        from: 'noreply@transbridgeusa.com',
+        from: brand.emailFrom,
         to: [resetPasswordEmailDto.email],
         subject: `Reset Your Password - ${companyName}`,
         html: htmlContent,
         text: textContent,
-        replyTo: 'support@transbridgeusa.com',
+        replyTo: brand.supportEmail,
       });
 
       // Handle Resend response properly
@@ -448,7 +464,7 @@ The ${companyName} Team
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
           .content { background-color: #ffffff; padding: 20px; border: 1px solid #e9ecef; border-radius: 8px; }
-          .cta-button { display: inline-block; background-color: #007bff; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+          .cta-button { display: inline-block; background-color: ${brand.primaryColor}; color: #ffffff !important; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
           .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
           .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
           .link-fallback { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; word-break: break-all; }
@@ -456,6 +472,7 @@ The ${companyName} Team
       </head>
       <body>
         <div class="header">
+          ${this.logoHtml(companyName)}
           <h1>Reset Your Password</h1>
         </div>
         
@@ -484,7 +501,7 @@ The ${companyName} Team
             </ul>
           </div>
           
-          <p>If you have any questions or need assistance, please contact our support team at <a href="mailto:support@transbridgeusa.com">support@transbridgeusa.com</a>.</p>
+          <p>If you have any questions or need assistance, please contact our support team at <a href="mailto:${escapeHtml(brand.supportEmail)}">${escapeHtml(brand.supportEmail)}</a>.</p>
         </div>
         
         <div class="footer">
@@ -513,7 +530,7 @@ IMPORTANT:
 - If you didn't request a password reset, please ignore this email
 - For security reasons, this link is only valid for a limited time
 
-If you have any questions or need assistance, please contact our support team at support@transbridgeusa.com.
+If you have any questions or need assistance, please contact our support team at ${brand.supportEmail}.
 
 Best regards,
 The ${companyName} Team

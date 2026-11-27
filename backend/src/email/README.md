@@ -5,7 +5,7 @@ This module provides email functionality using the Resend service for sending we
 ## Setup
 
 1. Set the `RESEND_API_KEY` environment variable with your Resend API key
-2. Ensure the domain `noreply@transbridgeusa.com` is verified in your Resend account
+2. Set `EMAIL_FROM_ADDRESS` to an address on a domain verified in your Resend account
 
 ## Endpoints
 
@@ -39,7 +39,7 @@ export class UserService {
       email: userData.email,
       accountId: user.id,
       password: user.tempPassword,
-      loginUrl: 'https://dashboard.originalaccounts.com/login'
+      loginUrl: 'https://dashboard.example.com/login'
     });
 
     if (!emailResult.success) {
@@ -53,7 +53,15 @@ export class UserService {
 ## Environment Variables
 
 - `RESEND_API_KEY`: Your Resend API key (required)
- - `COMPANY_NAME`: Your company name shown in emails (required)
+- `COMPANY_NAME`: company name shown in emails, Swagger and 2FA labels (default `Your Company`)
+- `EMAIL_FROM_NAME`: sender display name (default: `COMPANY_NAME`)
+- `EMAIL_FROM_ADDRESS`: sender address; must be on a Resend-verified domain (default `noreply@example.com`)
+- `SUPPORT_EMAIL`: support contact shown in emails and used as reply-to (default `support@example.com`)
+- `EMAIL_LOGO_URL`: optional logo shown in the email header
+- `BRAND_PRIMARY_COLOR`: hex color for buttons and accents (default `#007bff`)
+- `DASHBOARD_LOGIN_URL`: login link in the welcome email (default `http://localhost:5173/login`)
+
+All of these are read by `src/config/brand.config.ts`.
 
 ## Dependencies
 
