@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccounts } from '../../hooks/useDatabase';
-import { supabase } from '../../lib/supabase';
 import { 
   Download, 
   Calendar, 
@@ -11,7 +10,6 @@ import {
   Filter,
   Search,
   Mail,
-  Printer,
   Archive,
   Clock,
   CheckCircle,

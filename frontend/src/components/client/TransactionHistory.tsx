@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useTransactions } from '../../hooks/useDatabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,9 +9,7 @@ import {
   ArrowDownLeft, 
   Search, 
   Filter,
-  Calendar,
   Download,
-  Eye,
   MapPin,
   CreditCard,
   Building2,

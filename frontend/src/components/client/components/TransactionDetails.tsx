@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Copy, RefreshCcw, X, XCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { RefreshCcw, XCircle } from "lucide-react";
 import { apiFetch } from "../../../lib/apiFetch";
 import { PayinTransaction } from "../../../api/types";
 

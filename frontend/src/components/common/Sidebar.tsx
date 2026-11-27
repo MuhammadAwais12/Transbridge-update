@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBranding } from '../../contexts/BrandingContext';
@@ -7,7 +7,6 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import WalletConnectModal from '../auth/WalletConnectModal';
 import { 
   isMetaMaskInstalled, 
-  getCurrentWalletProvider, 
   getBrowserSupportInfo, 
   getBrowserInfo 
 } from '../../utils/metamaskDetection';

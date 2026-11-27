@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   ArrowLeftRight, 
   Search, 
@@ -12,21 +12,14 @@ import {
   MoreVertical,
   TrendingUp,
   DollarSign,
-  Calendar,
   MapPin,
   User,
-  Building2,
   X,
-  MessageSquare,
-  Send,
   Check,
-  AlertCircle as AlertIcon,
-  FileText,
-  CreditCard,
-  Globe
+  AlertCircle as AlertIcon
 } from 'lucide-react';
 import { useMSBTransactions, manuallyCompleteTransaction } from '../../hooks/useDatabase';
-import { apiFetch } from '../../lib/apiFetch';
+import { notAvailable } from '../../lib/notAvailable';
 import { formatCurrency, formatTransactionAmount } from '../../lib/formatters';
 
 export default function TransactionManagement() {
@@ -48,41 +41,25 @@ export default function TransactionManagement() {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  // Transaction management functions
+  const [actionError, setActionError] = useState('');
+
+  const showActionError = (error: unknown) => {
+    setActionError(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    setTimeout(() => setActionError(''), 6000);
+  };
+
+  // Transaction management functions. The backend has no routes for these yet
+  // (PUT /transaction/approve|reject|update-status/:id), so they fail with a clear message.
   const approveTransaction = async (transactionId: string) => {
-    try {
-      await apiFetch(`/transaction/approve/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'approved' }),
-      });
-    } catch (error) {
-      console.error('Error approving transaction:', error);
-      throw error;
-    }
+    notAvailable('Approving transactions', `PUT /transaction/approve/${transactionId}`);
   };
 
-  const rejectTransaction = async (transactionId: string, reason?: string) => {
-    try {
-      await apiFetch(`/transaction/reject/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'rejected', reason }),
-      });
-    } catch (error) {
-      console.error('Error rejecting transaction:', error);
-      throw error;
-    }
+  const rejectTransaction = async (transactionId: string, _reason?: string) => {
+    notAvailable('Rejecting transactions', `PUT /transaction/reject/${transactionId}`);
   };
 
-  const updateTransactionStatus = async (transactionId: string, status: string, reason?: string) => {
-    try {
-      await apiFetch(`/transaction/update-status/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status, reason }),
-      });
-    } catch (error) {
-      console.error('Error updating transaction status:', error);
-      throw error;
-    }
+  const updateTransactionStatus = async (transactionId: string, _status: string, _reason?: string) => {
+    notAvailable('Changing transaction status', `PUT /transaction/update-status/${transactionId}`);
   };
 
   const handleManualComplete = async (transactionId: string) => {
@@ -135,6 +112,7 @@ export default function TransactionManagement() {
       refetch();
     } catch (error) {
       console.error('Failed to approve transaction:', error);
+      showActionError(error);
     } finally {
       setActionLoading(null);
     }
@@ -150,6 +128,7 @@ export default function TransactionManagement() {
       refetch();
     } catch (error) {
       console.error('Failed to reject transaction:', error);
+      showActionError(error);
     } finally {
       setActionLoading(null);
     }
@@ -163,6 +142,7 @@ export default function TransactionManagement() {
       refetch();
     } catch (error) {
       console.error('Failed to update transaction status:', error);
+      showActionError(error);
     } finally {
       setActionLoading(null);
     }
@@ -254,6 +234,20 @@ export default function TransactionManagement() {
   }
 
   return (
+    <>
+      {/* Action error (fixed so it shows above the detail / reject modals; outside space-y so the layout doesn't shift) */}
+      {actionError && (
+        <div role="alert" className="fixed top-4 right-4 z-[60] max-w-sm bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
+          <div className="flex items-start">
+            <AlertIcon className="w-5 h-5 text-red-600 mr-3 flex-shrink-0" />
+            <p className="text-sm text-red-800 flex-1">{actionError}</p>
+            <button onClick={() => setActionError('')} className="ml-3 text-red-400 hover:text-red-600" aria-label="Dismiss">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
     <div className="space-y-6">
       {/* Success Message */}
       {successMessage && (
@@ -928,5 +922,6 @@ export default function TransactionManagement() {
         </div>
       )}
     </div>
+    </>
   );
 }

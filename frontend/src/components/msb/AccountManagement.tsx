@@ -1,30 +1,24 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   CreditCard, 
   Search, 
   Filter, 
   Plus, 
-  MoreVertical, 
-  Eye, 
   Edit, 
   Lock,
   Unlock,
   DollarSign,
   TrendingUp,
-  AlertCircle,
   CheckCircle,
   User,
   Building2,
   Globe,
   X,
-  Users,
   Download,
-  Mail,
   Key,
   Copy,
   Check,
-  Shield,
-  CreditCard as CardIcon
+  Shield
 } from 'lucide-react';
 import { useAccounts, useClients, useAccountManagement } from '../../hooks/useDatabase';
 import { useAuth } from '../../contexts/AuthContext';

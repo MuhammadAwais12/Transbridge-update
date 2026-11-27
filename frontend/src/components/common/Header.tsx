@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useNotifications } from '../../hooks/useDatabase';
-import { Bell, Search, User, LogOut, Settings } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface HeaderProps {
   title?: string;

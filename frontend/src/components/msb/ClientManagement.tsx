@@ -1,25 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   Users, 
   Search, 
   Filter, 
   Plus, 
   MoreVertical, 
-  Eye, 
-  Edit, 
-  Lock,
-  Unlock,
   CheckCircle,
   XCircle,
   Shield,
   AlertTriangle,
-  Mail,
   Download,
   X,
   Check,
   User,
-  Key,
-  Copy
+  Key
 } from 'lucide-react';
 import { useClients, useClientManagement, resetClientWallet } from '../../hooks/useDatabase';
 import FileInput from '../common/FileInput';
@@ -207,6 +201,7 @@ export default function ClientManagement() {
       refetch();
     } catch (error) {
       console.error('Failed to update client status:', error);
+      setApiError(error instanceof Error ? error.message : 'Failed to update client status');
     }
   };
 
@@ -218,6 +213,8 @@ export default function ClientManagement() {
       refetch();
     } catch (error) {
       console.error('Failed to update KYC status:', error);
+      setShowKycModal(false); // the error banner renders behind the modal
+      setApiError(error instanceof Error ? error.message : 'Failed to update KYC status');
     }
   };
 
@@ -228,6 +225,7 @@ export default function ClientManagement() {
       refetch();
     } catch (error) {
       console.error('Failed to update risk level:', error);
+      setApiError(error instanceof Error ? error.message : 'Failed to update risk level');
     }
   };
 

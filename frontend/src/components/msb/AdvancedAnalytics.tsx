@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
-  BarChart3, 
   TrendingUp, 
   DollarSign, 
   Users, 
-  Calendar,
   Download,
-  Filter,
   ArrowUpRight,
   ArrowDownRight,
   Globe,
@@ -14,8 +11,6 @@ import {
   Activity
 } from 'lucide-react';
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 

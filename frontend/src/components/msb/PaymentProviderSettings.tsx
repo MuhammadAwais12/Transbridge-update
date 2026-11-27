@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   CreditCard, 
   Settings, 
   Globe, 
   DollarSign, 
   Check, 
-  X, 
   AlertTriangle,
   Shield,
   Key,

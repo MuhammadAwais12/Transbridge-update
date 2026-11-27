@@ -2,21 +2,13 @@
 
 import { PaymentProvider } from './types';
 
-// Environment variables would be used in production
-const BRIDGE_API_KEY = import.meta.env.VITE_BRIDGE_API_KEY || '';
-const BRIDGE_API_SECRET = import.meta.env.VITE_BRIDGE_API_SECRET || '';
-const BLINDPAY_API_KEY = import.meta.env.NEXT_PUBLIC_BLINDPAY_API_KEY || '';
-const BLINDPAY_API_SECRET = import.meta.env.NEXT_PUBLIC_BLINDPAY_API_SECRET || '';
-const ROUTEFUSION_API_KEY = import.meta.env.NEXT_PUBLIC_ROUTEFUSION_API_KEY || '';
-const ROUTEFUSION_API_SECRET = import.meta.env.NEXT_PUBLIC_ROUTEFUSION_API_SECRET || '';
+// Provider credentials and webhook secrets live in the backend only (never in the browser bundle).
 
 // Base configuration for providers
 export const providers: Record<string, PaymentProvider> = {
   bridge: {
     name: 'Bridge',
-    isActive: false, // Set to true when API keys are configured
-    apiKey: BRIDGE_API_KEY,
-    apiSecret: BRIDGE_API_SECRET,
+    isActive: false,
     baseUrl: 'https://api.bridge.xyz/v1',
     supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'],
     supportedCountries: ['US', 'CA', 'GB', 'EU', 'AU', 'JP'],
@@ -24,9 +16,7 @@ export const providers: Record<string, PaymentProvider> = {
   },
   blindpay: {
     name: 'BlindPay',
-    isActive: false, // Set to true when API keys are configured
-    apiKey: BLINDPAY_API_KEY,
-    apiSecret: BLINDPAY_API_SECRET,
+    isActive: false,
     baseUrl: 'https://api.blindpay.com/v1',
     supportedCurrencies: ['USD', 'EUR', 'GBP'],
     supportedCountries: ['US', 'CA', 'GB', 'EU'],
@@ -34,9 +24,7 @@ export const providers: Record<string, PaymentProvider> = {
   },
   routefusion: {
     name: 'Routefusion',
-    isActive: false, // Set to true when API keys are configured
-    apiKey: ROUTEFUSION_API_KEY,
-    apiSecret: ROUTEFUSION_API_SECRET,
+    isActive: false,
     baseUrl: 'https://api.routefusion.co/v1',
     supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'MXN'],
     supportedCountries: ['US', 'CA', 'GB', 'EU', 'AU', 'MX'],
@@ -60,11 +48,4 @@ export const getDefaultProvider = (currency: string, destinationCountry?: string
   } else {
     return 'routefusion';
   }
-};
-
-// Configuration for webhook verification
-export const webhookSecrets = {
-  bridge: import.meta.env.VITE_BRIDGE_WEBHOOK_SECRET || '',
-  blindpay: import.meta.env.NEXT_PUBLIC_BLINDPAY_WEBHOOK_SECRET || '',
-  routefusion: import.meta.env.VITE_ROUTEFUSION_WEBHOOK_SECRET || ''
 };

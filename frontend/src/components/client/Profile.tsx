@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBranding } from '../../contexts/BrandingContext';
 import { apiFetch, ApiError } from '../../lib/apiFetch';
@@ -15,9 +15,7 @@ import {
   Eye, 
   EyeOff,
   Key,
-  Bell,
   Globe,
-  CreditCard,
   FileText,
   Download,
   Upload,

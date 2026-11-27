@@ -1,21 +1,16 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Shield, 
   AlertTriangle, 
   FileText, 
   Download, 
   Search, 
-  Filter,
   Eye,
   CheckCircle,
   XCircle,
-  Clock,
-  TrendingUp,
-  Users,
-  DollarSign,
-  Calendar
+  Clock
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface ComplianceAlert {
   id: string;

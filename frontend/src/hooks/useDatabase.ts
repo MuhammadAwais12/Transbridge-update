@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch, ApiError } from '../lib/apiFetch';
+import { notAvailable } from '../lib/notAvailable';
 import type { User } from '../types';
 
 // Mock data for demo mode
@@ -677,43 +678,17 @@ export function useClients() {
     fetchClients();
   }, [user?.msbId]);
 
-  const updateClientStatus = async (clientId: string, isActive: boolean) => {
-    try {
-      await apiFetch(`/client/update-status/${clientId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ isActive }),
-      });
-      await fetchClients();
-    } catch (err: any) {
-      console.error('Error updating client status:', err);
-      throw err;
-    }
+  // No backend route for these yet (PUT /client/update-status|update-kyc-status|update-risk-level/:id)
+  const updateClientStatus = async (clientId: string, _isActive: boolean) => {
+    notAvailable('Changing client status', `PUT /client/update-status/${clientId}`);
   };
 
-  const updateClientKycStatus = async (clientId: string, kycStatus: string) => {
-    try {
-      await apiFetch(`/client/update-kyc-status/${clientId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ kycStatus }),
-      });
-      await fetchClients();
-    } catch (err: any) {
-      console.error('Error updating KYC status:', err);
-      throw err;
-    }
+  const updateClientKycStatus = async (clientId: string, _kycStatus: string) => {
+    notAvailable('Updating KYC status', `PUT /client/update-kyc-status/${clientId}`);
   };
 
-  const updateClientRiskLevel = async (clientId: string, riskLevel: string) => {
-    try {
-      await apiFetch(`/client/update-risk-level/${clientId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ riskLevel }),
-      });
-      await fetchClients();
-    } catch (err: any) {
-      console.error('Error updating risk level:', err);
-      throw err;
-    }
+  const updateClientRiskLevel = async (clientId: string, _riskLevel: string) => {
+    notAvailable('Changing risk level', `PUT /client/update-risk-level/${clientId}`);
   };
 
   return {
@@ -1039,57 +1014,21 @@ export function useTransactions() {
     }
   };
 
+  // No backend route for these yet (PUT /transaction/approve|reject|update-status/:id, POST /transaction/create)
   const approveTransaction = async (transactionId: string) => {
-    try {
-      await apiFetch(`/transaction/approve/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'approved' }),
-      });
-      await fetchTransactions(1, false);
-    } catch (err: any) {
-      console.error('Error approving transaction:', err);
-      throw err;
-    }
+    notAvailable('Approving transactions', `PUT /transaction/approve/${transactionId}`);
   };
 
-  const rejectTransaction = async (transactionId: string, reason?: string) => {
-    try {
-      await apiFetch(`/transaction/reject/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'rejected', reason }),
-      });
-      await fetchTransactions(1, false);
-    } catch (err: any) {
-      console.error('Error rejecting transaction:', err);
-      throw err;
-    }
+  const rejectTransaction = async (transactionId: string, _reason?: string) => {
+    notAvailable('Rejecting transactions', `PUT /transaction/reject/${transactionId}`);
   };
 
-  const updateTransactionStatus = async (transactionId: string, status: string, reason?: string) => {
-    try {
-      await apiFetch(`/transaction/update-status/${transactionId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status, reason }),
-      });
-      await fetchTransactions(1, false);
-    } catch (err: any) {
-      console.error('Error updating transaction status:', err);
-      throw err;
-    }
+  const updateTransactionStatus = async (transactionId: string, _status: string, _reason?: string) => {
+    notAvailable('Changing transaction status', `PUT /transaction/update-status/${transactionId}`);
   };
 
-  const createTransaction = async (transactionData: any) => {
-    try {
-      const data = await apiFetch('/transaction/create', {
-        method: 'POST',
-        body: JSON.stringify(transactionData),
-      });
-      await fetchTransactions(1, false);
-      return { success: true, data };
-    } catch (err: any) {
-      console.error('Error creating transaction:', err);
-      throw err;
-    }
+  const createTransaction = async (_transactionData: any): Promise<{ success: boolean; data: any }> => {
+    notAvailable('Creating transactions', 'POST /transaction/create');
   };
 
   const fetchRecentTransactions = async () => {
@@ -1152,10 +1091,8 @@ export function useNotifications() {
     try {
       setLoading(true);
       setError(null);
-      // Fetch from backend
-      const data = await apiFetch(`/notification/list?user_id=${user.id}`);
-      setNotifications(data.notifications || []);
-      setUnreadCount((data.notifications || []).filter((n: any) => !n.read).length);
+      // No backend route yet (GET /notification/list): report it instead of sending a request that 404s
+      notAvailable('The notifications feature', `GET /notification/list?user_id=${user.id}`);
     } catch (err: any) {
       setNotifications([]);
       setUnreadCount(0);
@@ -1170,29 +1107,11 @@ export function useNotifications() {
   }, [user]);
 
   const markAsRead = async (notificationId: string) => {
-    try {
-      await apiFetch(`/notification/mark-read/${notificationId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ read: true }),
-      });
-      await fetchNotifications();
-    } catch (err: any) {
-      console.error('Error marking notification as read:', err);
-      throw err;
-    }
+    notAvailable('The notifications feature', `PUT /notification/mark-read/${notificationId}`);
   };
 
   const markAllAsRead = async () => {
-    try {
-      await apiFetch('/notification/mark-all-read', {
-        method: 'PUT',
-        body: JSON.stringify({ read: true }),
-      });
-      await fetchNotifications();
-    } catch (err: any) {
-      console.error('Error marking all notifications as read:', err);
-      throw err;
-    }
+    notAvailable('The notifications feature', 'PUT /notification/mark-all-read');
   };
 
   return {
@@ -1221,11 +1140,10 @@ export function useComplianceAlerts() {
     try {
       setLoading(true);
       setError(null);
-      // Fetch from backend
-      const data = await apiFetch(`/compliance-alert/list?msb_id=${user.msbId}`);
-      setAlerts(data.alerts || []);
+      // No backend route yet (GET /compliance-alert/list): report it instead of sending a request that 404s
+      notAvailable('The compliance alerts feature', `GET /compliance-alert/list?msb_id=${user.msbId}`);
     } catch (err: any) {
-      console.error('Error fetching compliance alerts:', err);
+      setAlerts([]);
       setError(err.message || 'Failed to fetch compliance alerts');
     } finally {
       setLoading(false);
@@ -1666,17 +1584,9 @@ export function useVirtualAccounts() {
     }
   };
 
-  const updateVirtualAccountStatus = async (virtualAccountId: string, status: string) => {
-    try {
-      await apiFetch(`/virtual-account/update-status/${virtualAccountId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status }),
-      });
-      await fetchVirtualAccounts();
-    } catch (err: any) {
-      console.error('Error updating virtual account status:', err);
-      throw err;
-    }
+  const updateVirtualAccountStatus = async (virtualAccountId: string, _status: string) => {
+    // No backend route at this path (the backend has PUT /virtual-account/:id/status)
+    notAvailable('Changing virtual account status', `PUT /virtual-account/update-status/${virtualAccountId}`);
   };
 
   return {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 // import { WalletConnectConnector } from 'wagmi/connectors/walletConnect'; // TODO: Add WalletConnect support
 import { Dialog } from '@headlessui/react';

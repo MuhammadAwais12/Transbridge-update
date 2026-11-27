@@ -6,25 +6,15 @@ import { useAccounts } from '../../hooks/useDatabase';
 import { 
   Wallet, 
   ArrowUpRight, 
-  ArrowDownLeft, 
-  CreditCard, 
-  TrendingUp, 
-  Calendar,
   Bell,
-  Shield,
   CheckCircle,
   XCircle,
   Clock,
-  AlertTriangle,
   Eye,
   X,
   Loader,
-  AlertCircle,
-  Loader2,
-  Copy,
-  RefreshCcw
+  AlertCircle
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { Transaction } from '../../types';
 import { getStatusColor } from '../../helpers/transaction';
 

@@ -1,15 +1,10 @@
 import React, { useState } from 'react';
 import {
   Plus,
-  Download,
   Check,
   X,
   User,
-  Wallet as WalletIcon,
-  Key,
-  Edit,
-  Eye,
-  MoreVertical
+  Wallet as WalletIcon
 } from 'lucide-react';
 import { useClients, useWallets } from '../../hooks/useDatabase';
 

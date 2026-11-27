@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, CreditCard, ArrowLeftRight, Shield, TrendingUp, AlertTriangle, DollarSign, Activity } from 'lucide-react';
+import { Users, CreditCard, ArrowLeftRight, TrendingUp, DollarSign, Activity } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useClients, useAccounts, useDashboardTransactions, useComplianceAlerts } from '../../hooks/useDatabase';
 import { formatCurrency } from '../../lib/formatters';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PROHIBITED_COUNTRIES_AND_REGIONS, PROHIBITED_COUNTRIES_ISO2 } from "../helpers/prohibitedCountries";
+import { PROHIBITED_COUNTRIES_AND_REGIONS } from "../helpers/prohibitedCountries";
 
 const BASE_URL = "https://countriesnow.space/api/v0.1";
  

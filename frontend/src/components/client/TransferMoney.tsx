@@ -12,37 +12,17 @@ import FileInput from '../common/FileInput';
 import { getTokenNetworkConfig } from '../../utils/tokenNetworkConfig';
 import { 
   ArrowRight, 
-  ArrowLeft, 
   Loader, 
   CheckCircle, 
   AlertCircle, 
   Building2, 
   User, 
   CreditCard, 
-  Banknote, 
   Globe, 
-  Home, 
   Plus, 
   Trash2, 
-  Edit,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
-  FileText,
-  Building,
-  Users,
-  Globe2,
-  MapPin,
-  Phone,
-  Mail,
-  Smartphone,
-  Eye,
-  EyeOff,
-  Clock,
   Search,
-  DollarSign,
-  Shield,
-  X
+  DollarSign
 } from 'lucide-react';
 
 interface Beneficiary {

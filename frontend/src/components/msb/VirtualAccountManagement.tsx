@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useVirtualAccounts, useClients, useWallets } from '../../hooks/useDatabase';
 import { Loader2, Plus, Banknote, CreditCard, Activity } from 'lucide-react';
 import { getTokenNetworkConfig } from '../../utils/tokenNetworkConfig';

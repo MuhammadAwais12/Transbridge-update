@@ -51,7 +51,7 @@ export const getTokenNetworkConfig = (
   walletNetwork?: string,
   environment?: string
 ): TokenNetworkConfig => {
-  const env = environment || import.meta.env.NEXT_PUBLIC_VITE_ENVIRONMENT || 'development';
+  const env = environment || 'development';
   const network = walletNetwork || 'base_sepolia'; // Default fallback
   
   // Map the wallet network to the appropriate BlindPay network
@@ -76,14 +76,14 @@ export const getTokenNetworkConfig = (
 
 // Function to validate if a token is supported in the current environment
 export const isTokenSupported = (token: string, environment?: string): boolean => {
-  const env = environment || import.meta.env.NEXT_PUBLIC_VITE_ENVIRONMENT || 'development';
+  const env = environment || 'development';
   const supportedTokens = getEnvironmentTokens(env);
   return supportedTokens.includes(token.toUpperCase());
 };
 
 // Function to validate if a network is supported in the current environment
 export const isNetworkSupported = (network: string, environment?: string): boolean => {
-  const env = environment || import.meta.env.NEXT_PUBLIC_VITE_ENVIRONMENT || 'development';
+  const env = environment || 'development';
   const networkMap: { [key: string]: string[] } = {
     development: ['base_sepolia', 'polygon_amoy', 'arbitrum_sepolia', 'sepolia', 'stellar_testnet'],
     production: ['base', 'polygon', 'arbitrum', 'ethereum', 'stellar']

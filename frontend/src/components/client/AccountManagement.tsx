@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBranding } from '../../contexts/BrandingContext';
 import { useAccounts } from '../../hooks/useDatabase';
@@ -6,26 +6,13 @@ import {
   CreditCard, 
   Eye, 
   EyeOff, 
-  Download, 
   ArrowUpRight, 
   ArrowDownLeft, 
-  Filter,
-  Search,
-  Calendar,
-  DollarSign,
   TrendingUp,
-  Settings,
-  Lock,
-  Unlock,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  MapPin,
   Building2,
   Globe,
   Loader
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 interface Transaction {
   id: string;

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
-import { Upload, CheckCircle, AlertCircle, FileText, Camera, MapPin, User, Loader, X, Check } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, FileText, MapPin, User, Loader, X, Check } from 'lucide-react';
 
 interface KYCStep {
   id: string;

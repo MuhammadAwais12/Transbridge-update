@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   ArrowLeftRight, 
   DollarSign, 
@@ -7,7 +7,6 @@ import {
   Check, 
   Clock, 
   X,
-  Filter,
   Search,
   Download,
   RefreshCw,

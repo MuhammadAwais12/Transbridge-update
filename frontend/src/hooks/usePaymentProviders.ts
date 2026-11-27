@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import * as paymentApi from '../api';
 import type { PaymentRequest, PaymentResponse, StatementRequest, StatementResponse } from '../api/types';
