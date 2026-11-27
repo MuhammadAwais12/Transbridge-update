@@ -56,6 +56,17 @@ $ yarn migration:revert   # undo the most recent one
 
 Generate against a database that is up to date with the existing migrations, and review the generated SQL before committing.
 
+## Security configuration
+
+- Apply all pending migrations before deploying; the current auth changes add `users.token_version`.
+- Set `CORS_ORIGINS` to a comma-separated allowlist of trusted dashboard origins. HTTP and WebSocket connections use this list.
+- Set `DB_SSL=true` for production PostgreSQL TLS. Certificate validation is enabled; set `DB_SSL_CA` to the PEM CA certificate if it is not in the host's default trust store.
+- JWTs expire after one hour and are held in browser `sessionStorage` (per tab). The dashboard refreshes them via `POST /client/refresh-token` or `POST /msb-admin/refresh-token`; a session is capped at 12 hours from the last password login. Tokens are invalidated server-side at logout and password reset; a password change revokes other sessions and returns a new token to the current one. Existing users must log in again after deployment.
+- Login is rate limited per account (6 attempts / 3 min, regardless of source IP) and per IP (30 attempts / 3 min).
+- New and changed passwords must be 12-128 characters. Login still accepts legacy shorter passwords so existing accounts can authenticate and change them.
+- Password reset requests and token submissions are rate limited. Reset tokens expire after 30 minutes and are single-use.
+- Transaction completion must come from verified provider updates; the manual-completion endpoint is removed. Reconcile a `payout_processing` transaction with the provider before any retry after an uncertain payout response.
+
 ## Compile and run the project
 
 ```bash

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './apiBase';
-import { getAuthHeaders } from './auth';
+import { clearSession, getAuthHeaders } from './auth';
 
 /** Thrown for any non-2xx backend response. `body` is the parsed response (JSON or text). */
 export class ApiError extends Error {
@@ -26,8 +26,7 @@ let redirecting = false;
 
 function clearSessionAndRedirect() {
   // Same keys AuthContext.logout() clears. App renders the login form whenever no user is stored.
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('auth_user');
+  clearSession();
   if (!redirecting) {
     redirecting = true;
     window.location.replace('/');

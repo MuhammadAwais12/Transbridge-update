@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiFetch, ApiError } from '../lib/apiFetch';
+import { getAuthToken } from '../lib/auth';
 import { notAvailable } from '../lib/notAvailable';
 import type { User } from '../types';
 
@@ -1679,7 +1680,7 @@ function generateTempPassword(): string {
 export async function linkWallet({ wallet_address, wallet_network }: { wallet_address: string; wallet_network: string }) {
   console.log('linkWallet called with:', { wallet_address, wallet_network });
 
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   if (!token) {
     console.error('No auth token found');
     throw new Error('Not authenticated');
@@ -1707,7 +1708,7 @@ export async function resetClientWallet({
 }) {
   console.log('resetClientWallet called with:', { client_id, reason, support_agent_id });
 
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   if (!token) {
     console.error('No auth token found');
     throw new Error('Not authenticated');
@@ -1735,7 +1736,7 @@ export async function approveTransaction({
 }) {
   console.log('approveTransaction called with:', { transaction_id, wallet_address, reason });
 
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   if (!token) {
     console.error('No auth token found');
     throw new Error('Not authenticated');
@@ -1795,7 +1796,7 @@ export async function completeTransactionApproval({
 }) {
   console.log('completeTransactionApproval called with:', { transaction_id, wallet_address, reason });
 
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   if (!token) {
     console.error('No auth token found');
     throw new Error('Not authenticated');
@@ -1810,34 +1811,4 @@ export async function completeTransactionApproval({
   });
   console.log('completeTransactionApproval success result:', result);
   return result;
-}
-
-export async function manuallyCompleteTransaction({
-  transaction_id,
-  payout_id
-}: {
-  transaction_id: string;
-  payout_id?: string;
-}): Promise<any> {
-  const token = localStorage.getItem('auth_token');
-  if (!token) {
-    console.error('No auth token found');
-    throw new Error('Not authenticated');
-  }
-
-  console.log('manuallyCompleteTransaction called with:', { transaction_id, payout_id });
-
-  try {
-    const result = await apiFetch(`/transfer/complete/${transaction_id}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        payoutId: payout_id
-      }),
-    });
-    console.log('manuallyCompleteTransaction success result:', result);
-    return result;
-  } catch (error) {
-    console.error('Error in manuallyCompleteTransaction:', error);
-    throw error;
-  }
 }

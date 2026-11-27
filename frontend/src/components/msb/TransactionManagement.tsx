@@ -18,7 +18,7 @@ import {
   Check,
   AlertCircle as AlertIcon
 } from 'lucide-react';
-import { useMSBTransactions, manuallyCompleteTransaction } from '../../hooks/useDatabase';
+import { useMSBTransactions } from '../../hooks/useDatabase';
 import { notAvailable } from '../../lib/notAvailable';
 import { formatCurrency, formatTransactionAmount } from '../../lib/formatters';
 
@@ -60,20 +60,6 @@ export default function TransactionManagement() {
 
   const updateTransactionStatus = async (transactionId: string, _status: string, _reason?: string) => {
     notAvailable('Changing transaction status', `PUT /transaction/update-status/${transactionId}`);
-  };
-
-  const handleManualComplete = async (transactionId: string) => {
-    setActionLoading(transactionId);
-    try {
-      await manuallyCompleteTransaction({ transaction_id: transactionId });
-      showSuccessMessage('Transaction manually completed successfully');
-      refetch();
-    } catch (error) {
-      console.error('Error manually completing transaction:', error);
-      alert(`Failed to manually complete transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setActionLoading(null);
-    }
   };
 
   const getStatusColor = (status: string) => {
@@ -532,20 +518,6 @@ export default function TransactionManagement() {
                         >
                           {actionLoading === transaction.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                          ) : (
-                            <CheckCircle className="w-4 h-4" />
-                          )}
-                        </button>
-                      )} */}
-                      {/* {transaction.status === 'payout_pending' && (
-                        <button
-                          onClick={() => handleManualComplete(transaction.id)}
-                          disabled={actionLoading === transaction.id}
-                          className="text-orange-600 hover:text-orange-800 disabled:opacity-50"
-                          title="Manually Complete (Webhook Fix)"
-                        >
-                          {actionLoading === transaction.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
                           ) : (
                             <CheckCircle className="w-4 h-4" />
                           )}

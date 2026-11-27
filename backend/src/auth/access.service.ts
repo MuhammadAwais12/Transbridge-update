@@ -28,6 +28,8 @@ export interface JwtUser {
   userId: string;
   email?: string;
   role?: string;
+  tokenVersion: number;
+  authTime?: number;
 }
 
 /**
@@ -53,9 +55,12 @@ export class AccessService {
     if (!jwtUser?.userId) throw new UnauthorizedException();
     const user = await this.userRepository.findOne({
       where: { id: jwtUser.userId },
-      select: ['id', 'role', 'msb_id', 'is_active'],
+      select: ['id', 'role', 'msb_id', 'is_active', 'token_version'],
     });
     if (!user || !user.is_active) throw new UnauthorizedException();
+    if (jwtUser.tokenVersion !== user.token_version) {
+      throw new UnauthorizedException();
+    }
     if (user.role !== 'account_holder' && user.role !== 'msb_admin') {
       throw new ForbiddenException('Unsupported role');
     }

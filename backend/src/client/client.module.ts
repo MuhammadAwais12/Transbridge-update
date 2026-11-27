@@ -27,7 +27,7 @@ import { Msb, User } from 'src/msb-admin/msb-admin.entity';
     ]),
     JwtModule.register({
       secret: jwtSecret(),
-      signOptions: { expiresIn: '7d' },
+      signOptions: { expiresIn: '1h' },
     }),
     WalletModule,
     forwardRef(() => BridgeModule),

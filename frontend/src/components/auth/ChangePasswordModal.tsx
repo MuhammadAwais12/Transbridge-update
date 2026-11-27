@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Eye, EyeOff, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiFetch, ApiError } from '../../lib/apiFetch';
+import { setAuthToken } from '../../lib/auth';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -43,8 +44,8 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
     if (!newPassword.trim()) {
       newFieldErrors.newPassword = 'New password is required';
       hasErrors = true;
-    } else if (newPassword.length < 6) {
-      newFieldErrors.newPassword = 'New password must be at least 6 characters';
+    } else if (newPassword.length < 12) {
+      newFieldErrors.newPassword = 'New password must be at least 12 characters';
       hasErrors = true;
     } else if (newPassword.length > 128) {
       newFieldErrors.newPassword = 'New password must not exceed 128 characters';
@@ -67,7 +68,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
     setIsLoading(true);
     try {
       // Backend answers 401 for a wrong current password, so don't log the user out on 401 here
-      await apiFetch('/client/change-password', {
+      const result = await apiFetch<{ token?: string }>('/client/change-password', {
         method: 'POST',
         body: JSON.stringify({
           currentPassword,
@@ -75,6 +76,8 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
         }),
         skipAuthRedirect: true,
       });
+      // The backend revokes older tokens on password change; keep this session on the new one.
+      if (result?.token) setAuthToken(result.token);
 
       // Success
       onSuccess();

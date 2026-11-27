@@ -1,5 +1,5 @@
 import { providers } from '../config/providers.config';
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from '../client/transaction.entity';
@@ -751,9 +751,11 @@ export class TransferService {
     if (tx.status !== 'payin_completed' && tx.status !== 'payout_failed') {
       throw new BadRequestException(`Transaction cannot be approved in current status: ${tx.status}`);
     }
+    const approvalStatus = tx.status;
+    const retryingFailedPayout = approvalStatus === 'payout_failed';
 
     // Check if approval is required or if this is a retry of a failed payout
-    if (!tx.metadata?.awaiting_approval && tx.status !== 'payout_failed') {
+    if (!tx.metadata?.awaiting_approval && !retryingFailedPayout) {
       throw new BadRequestException('Transaction does not require approval');
     }
 
@@ -772,7 +774,7 @@ export class TransferService {
     const wallet_address = client.wallet_address; // Use client's wallet address
 
     // If this is a retry of a failed payout, we might need to create a new quote
-    if (tx.status === 'payout_failed') {
+    if (retryingFailedPayout) {
       this.logger.log('Retrying failed payout - checking if we need a new quote');
       
       try {
@@ -819,7 +821,13 @@ export class TransferService {
           payout_quote_data: newQuote,
           retry_quote_created_at: new Date().toISOString(),
         };
-        await this.transactionRepository.save(tx);
+        const quoteUpdate = await this.transactionRepository.update(
+          { id: tx.id, status: approvalStatus },
+          { metadata: tx.metadata },
+        );
+        if (!quoteUpdate.affected) {
+          throw new BadRequestException('Transaction approval is already in progress or no longer available');
+        }
         
         this.logger.log('New quote created for retry:', newQuote.id);
       }
@@ -835,10 +843,21 @@ export class TransferService {
     this.logger.log('Wallet address:', wallet_address);
     this.logger.log('============================');
 
-    try {
-      // Validate quote before using it
-      await this.validateQuote(payout_quote_id, payout_quote_data);
+    // Validate before claiming so invalid quotes do not lock the transaction.
+    await this.validateQuote(payout_quote_id, payout_quote_data);
 
+    const claimResult = await this.transactionRepository.update(
+      { id: tx.id, status: approvalStatus },
+      { status: 'payout_processing' },
+    );
+    if (!claimResult.affected) {
+      throw new BadRequestException('Transaction approval is already in progress or no longer available');
+    }
+
+    tx.status = 'payout_processing';
+
+    let payoutDefinitelyRejected = false;
+    try {
       // Note: Token allowance verification is handled by the frontend during the approval process
       // The frontend will show a MetaMask approval modal to the user, similar to the confirm transfer flow
       this.logger.log('Skipping backend allowance verification - frontend will handle token approval');
@@ -860,6 +879,8 @@ export class TransferService {
       });
 
       if (!payoutRes.ok) {
+        payoutDefinitelyRejected =
+          payoutRes.status >= 400 && payoutRes.status < 500 && payoutRes.status !== 409;
         const errorText = await payoutRes.text();
         this.logger.error('Payout initiation error during approval:', errorText);
         
@@ -891,7 +912,7 @@ export class TransferService {
         approval_reason: dto.reason || 'Client approved the transfer',
         awaiting_approval: false,
         // Clear error information if this was a retry
-        ...(tx.status === 'payout_failed' && {
+        ...(retryingFailedPayout && {
           payout_error: undefined,
           payout_error_at: undefined,
           approval_failed_at: undefined,
@@ -914,53 +935,23 @@ export class TransferService {
     } catch (error) {
       this.logger.error('Failed to approve transaction:', error);
       
-      // Update transaction with error
-      tx.status = 'payout_failed';
-      tx.metadata = {
-        ...tx.metadata,
-        payout_error: error.message,
-        payout_error_at: new Date().toISOString(),
-        approval_failed_at: new Date().toISOString(),
-      };
-      await this.transactionRepository.save(tx);
+      if (payoutDefinitelyRejected) {
+        tx.status = 'payout_failed';
+        tx.metadata = {
+          ...tx.metadata,
+          payout_error: error.message,
+          payout_error_at: new Date().toISOString(),
+          approval_failed_at: new Date().toISOString(),
+        };
+        await this.transactionRepository.save(tx);
+      } else {
+        this.logger.error(
+          'Payout outcome is uncertain; leaving transaction in payout_processing to prevent a duplicate payout',
+        );
+      }
       
       throw error;
     }
   }
 
-  /**
-   * Manually update transaction status to completed
-   * This can be used for debugging or manual fixes when webhooks fail
-   */
-  async manuallyCompleteTransaction(transactionId: string, payoutId?: string): Promise<any> {
-    this.logger.log('Manually completing transaction:', transactionId, 'with payout ID:', payoutId);
-    
-    const tx = await this.transactionRepository.findOne({
-      where: { id: transactionId }
-    });
-
-    if (!tx) {
-      throw new BadRequestException('Transaction not found');
-    }
-
-    // Update transaction status
-    tx.status = 'completed';
-    tx.completed_at = new Date();
-    tx.metadata = {
-      ...tx.metadata,
-      manually_completed_at: new Date().toISOString(),
-      manually_completed_payout_id: payoutId,
-      payout_status: 'completed'
-    };
-
-    await this.transactionRepository.save(tx);
-    this.logger.log('Transaction manually completed:', tx.id);
-
-    return {
-      success: true,
-      message: 'Transaction manually completed',
-      transaction_id: tx.id,
-      status: 'completed'
-    };
-  }
 } 

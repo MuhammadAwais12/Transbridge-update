@@ -2,6 +2,17 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { User } from '../types';
 import { API_BASE_URL } from '../lib/apiBase';
 import { useDisconnect, useAccount } from 'wagmi';
+import {
+  clearSession,
+  getAuthToken,
+  getStoredUser,
+  getTokenExpiry,
+  setAuthToken,
+  setStoredUser,
+} from '../lib/auth';
+
+// Refresh this long before the access token expires.
+const REFRESH_LEAD_MS = 5 * 60 * 1000;
 
 export interface AuthContextType {
   user: User | null;
@@ -32,9 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { address: connectedAddress, isConnected } = useAccount();
 
   useEffect(() => {
-    // Check for stored auth
-    const storedUser = localStorage.getItem('auth_user');
-    if (storedUser) {
+    // Sessions are tab-scoped; drop anything older builds left in localStorage.
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    const storedToken = getAuthToken();
+    const storedUser = getStoredUser();
+    if (storedToken && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
         // Ensure the user object has the correct structure when loaded from localStorage
@@ -55,8 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch (error) {
         console.error('Error parsing stored user:', error);
-        localStorage.removeItem('auth_user');
+        clearSession();
       }
+    } else {
+      clearSession();
     }
     setIsLoading(false);
   }, []);
@@ -83,6 +99,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // This allows users to connect MetaMask and then register their wallet
     }
   }, [user, isConnected, connectedAddress, disconnectWallet, isConnectingWallet]);
+
+  // Keep an active session alive: swap the token for a fresh one shortly before it expires.
+  // The backend caps the whole session at 12 hours, after which the user logs in again.
+  useEffect(() => {
+    if (!user) return;
+    const endpoint =
+      user.role === 'msb_admin' ? '/msb-admin/refresh-token' : '/client/refresh-token';
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+
+    const schedule = () => {
+      const token = getAuthToken();
+      const exp = token ? getTokenExpiry(token) : null;
+      if (!exp) return;
+      const delay = Math.max(exp * 1000 - Date.now() - REFRESH_LEAD_MS, 0);
+      timer = setTimeout(refresh, delay);
+    };
+
+    const refresh = async () => {
+      const token = getAuthToken();
+      if (!token || cancelled) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+        if (response.ok) {
+          const data = await response.json();
+          if (typeof data?.token === 'string') setAuthToken(data.token);
+          schedule();
+        } else if (response.status === 401) {
+          // Session revoked or past its 12-hour limit.
+          setUser(null);
+          clearSession();
+        } else {
+          timer = setTimeout(refresh, 60 * 1000);
+        }
+      } catch {
+        // Network blip: try again shortly; the token may still be valid.
+        if (!cancelled) timer = setTimeout(refresh, 60 * 1000);
+      }
+    };
+
+    schedule();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [user?.id, user?.role]);
 
   const login = async (email: string, password: string, userType: 'msb' | 'client'): Promise<{ success: boolean; error?: string }> => {
     setError(null);
@@ -140,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         wallet_network: data.user.wallet_network,
         blindpay_wallet_id: data.user.blindpay_wallet_id,
       });
-      localStorage.setItem('auth_user', JSON.stringify({
+      setStoredUser({
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
@@ -154,8 +220,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         wallet_address: data.user.wallet_address,
         wallet_network: data.user.wallet_network,
         blindpay_wallet_id: data.user.blindpay_wallet_id,
-      }));
-      localStorage.setItem('auth_token', data.token);
+      });
+      setAuthToken(data.token);
 
       setLoginError(null);
       return { success: true };
@@ -167,13 +233,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    const token = getAuthToken();
+    if (token && user) {
+      const endpoint =
+        user.role === 'msb_admin' ? '/msb-admin/logout' : '/client/logout';
+      void fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch((logoutError) => {
+        console.error('Failed to revoke server session during logout:', logoutError);
+      });
+    }
+
     // Disconnect wallet first to prevent wallet persistence across accounts
     disconnectWallet();
     
-    // Clear user state and local storage
+    // Clear user state and stored session
     setUser(null);
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_token');
+    clearSession();
   };
 
   const clearLoginError = () => {
@@ -189,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         blindpay_wallet_id: walletData.blindpay_wallet_id,
       };
       setUser(updatedUser);
-      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      setStoredUser(updatedUser);
     }
   };
 
@@ -209,7 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         passwordChanged: true,
       };
       setUser(updatedUser);
-      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      setStoredUser(updatedUser);
     }
   }
 

@@ -19,7 +19,13 @@ export default new DataSource({
   username: requireEnv('DB_USER'),
   password: requireEnv('DB_PASSWORD'),
   database: requireEnv('DB_NAME'),
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  ssl:
+    process.env.DB_SSL === 'true'
+      ? {
+          rejectUnauthorized: true,
+          ...(process.env.DB_SSL_CA ? { ca: process.env.DB_SSL_CA } : {}),
+        }
+      : false,
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false, // the schema is changed by migrations only

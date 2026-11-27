@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { brand } from './config/brand.config';
+import { getAllowedCorsOrigins } from './config/cors.config';
 
 async function bootstrap() {
   if (process.env.NODE_ENV === 'production') {
@@ -36,11 +37,7 @@ async function bootstrap() {
   );
 
   // Enable CORS for frontend origin
-  const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
-  app.enableCors({ origin: allowedOrigins, credentials: true });
+  app.enableCors({ origin: getAllowedCorsOrigins(), credentials: true });
 
   const config = new DocumentBuilder()
     .setTitle(`${brand.companyName} MSB API`)

@@ -12,9 +12,12 @@ import { Wallet } from '../msb-wallet/wallet.entity';
 import { Beneficiary } from '../client/beneficiary.entity';
 import { Account } from '../client/account.entity';
 import { ClientProfile } from '../client/client.entity';
+import { JwtModule } from '@nestjs/jwt';
+import { jwtSecret } from '../auth/jwt-secret';
 
 @Module({
   imports: [
+    JwtModule.register({ secret: jwtSecret() }),
     TypeOrmModule.forFeature([Transaction, Wallet, Beneficiary, Account, ClientProfile]),
   ],
   controllers: [TransferController, TransactionController, BeneficiaryController, AccountController],

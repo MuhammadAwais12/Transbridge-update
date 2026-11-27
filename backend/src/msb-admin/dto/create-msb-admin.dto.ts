@@ -13,7 +13,7 @@ export class CreateMsbAdminDto {
   email: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(12)
   @MaxLength(128) // Reasonable password length limit
   password: string;
 

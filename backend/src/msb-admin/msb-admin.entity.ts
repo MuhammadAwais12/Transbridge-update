@@ -88,6 +88,9 @@ export class User {
 
   @Column({ type: 'boolean', default: false })
   password_changed: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  token_version: number = 0;
 }
 
 @Entity('activity')

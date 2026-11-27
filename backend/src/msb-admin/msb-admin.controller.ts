@@ -100,7 +100,10 @@ export class MsbAdminController {
 
   @Post('login')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ otp: { limit: 6, ttl: 3 * 60 * 1000 } })
+  @Throttle({
+    otp: { limit: 6, ttl: 3 * 60 * 1000 },
+    ip: { limit: 30, ttl: 3 * 60 * 1000 },
+  })
   @ApiOperation({ summary: 'Login as an MSB admin' })
   @ApiBody({ type: LoginMsbAdminDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
@@ -122,6 +125,26 @@ export class MsbAdminController {
       throw new UnauthorizedException('User not authenticated');
     }
     return this.msbAdminService.logout(userId);
+  }
+
+  @Post('refresh-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Exchange a valid access token for a fresh one' })
+  @ApiResponse({ status: 401, description: 'Unauthorized or session too old' })
+  async refreshToken(
+    @Request() req: ExpressRequest & {
+      user?: { userId?: string; authTime?: number; tokenVersion?: number };
+    },
+  ) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+    return this.msbAdminService.refreshToken(
+      userId,
+      req.user?.authTime,
+      req.user?.tokenVersion,
+    );
   }
 
   // No super-admin role exists, so the listings below are scoped to the caller's own MSB.

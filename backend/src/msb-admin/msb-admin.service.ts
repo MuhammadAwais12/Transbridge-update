@@ -18,6 +18,10 @@ import { UpdateBrandingDto } from './dto/update-branding.dto';
 import { EmailService } from '../email/email.service';
 import { brand } from '../config/brand.config';
 import { UploadService } from '../upload/upload.service';
+import {
+  refreshSessionToken,
+  signSessionToken,
+} from '../auth/session-token';
 
 // bcrypt has proper type definitions; use direct calls and suppress strict unsafe-call/member-access for these lines only
 
@@ -62,9 +66,9 @@ export class MsbAdminService {
         'Email must not be longer than 254 characters',
       );
     }
-    if (!password || password.length < 6 || password.length > 128) {
+    if (!password || password.length < 12 || password.length > 128) {
       throw new BadRequestException(
-        'Password must be between 6 and 128 characters',
+        'Password must be between 12 and 128 characters',
       );
     }
     if (!name || name.length > 100) {
@@ -127,8 +131,7 @@ export class MsbAdminService {
     } catch {
       console.warn('Unexpected error sending welcome email');
     }
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
+    const token = signSessionToken(this.jwtService, user);
     return {
       message: 'MSB admin registered successfully',
       token,
@@ -225,8 +228,7 @@ export class MsbAdminService {
     });
     await this.activityRepository.save(activity);
     
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
+    const token = signSessionToken(this.jwtService, user);
     return {
       message: 'Login successful',
       token,
@@ -249,6 +251,9 @@ export class MsbAdminService {
       throw new UnauthorizedException('User not found');
     }
 
+    // Atomic increment: revokes every token issued before this logout.
+    await this.userRepository.increment({ id: userId }, 'token_version', 1);
+
     // Log logout activity
     const activity = this.activityRepository.create({
       id: uuidv4(),
@@ -264,6 +269,21 @@ export class MsbAdminService {
     return {
       message: 'Logout successful',
     };
+  }
+
+  async refreshToken(
+    userId: string,
+    authTime: number | undefined,
+    tokenVersion: number | undefined,
+  ) {
+    return refreshSessionToken(
+      this.jwtService,
+      this.userRepository,
+      userId,
+      'msb_admin',
+      authTime,
+      tokenVersion,
+    );
   }
 
   async twofaSetup(userId: string) {

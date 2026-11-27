@@ -13,7 +13,7 @@ import { UploadModule } from '../upload/upload.module';
     TypeOrmModule.forFeature([User, Msb, Activity]),
     JwtModule.register({
       secret: jwtSecret(),
-      signOptions: { expiresIn: '7d' },
+      signOptions: { expiresIn: '1h' },
     }),
     EmailModule,
     UploadModule,

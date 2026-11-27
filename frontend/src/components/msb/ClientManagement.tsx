@@ -259,7 +259,7 @@ export default function ClientManagement() {
   };
 
   const validatePassword = (password: string) => {
-    return password.length >= 6;
+    return password.length >= 12;
   };
 
   const validateWebsite = (website: string) => {
@@ -321,7 +321,7 @@ export default function ClientManagement() {
       errors.password = 'Password is required';
       hasError = true;
     } else if (!validatePassword(newClientData.password)) {
-      errors.password = 'Password must be at least 8 characters long';
+      errors.password = 'Password must be at least 12 characters long';
       hasError = true;
     }
 

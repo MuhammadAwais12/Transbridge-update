@@ -136,19 +136,4 @@ export class TransferController {
     return this.transferService.approveTransaction(dto, req.user);
   }
 
-  @Post('complete/:transactionId')
-  @ApiOperation({ summary: 'Manually complete a transaction (for debugging/fixes)' })
-  @ApiResponse({ status: 200, description: 'Transaction completed successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async manuallyCompleteTransaction(
-    @Param('transactionId') transactionId: string,
-    @Body() body: { payoutId?: string },
-    @CurrentCaller() caller: Caller,
-  ) {
-    // Only MSB admins of the transaction's MSB may manually complete transactions.
-    // (Previously checked req.user.msbId, which the JWT strategy never sets, so this always failed.)
-    this.access.requireMsbAdmin(caller);
-    await this.loadOwnedTransaction(caller, transactionId);
-    return this.transferService.manuallyCompleteTransaction(transactionId, body.payoutId);
-  }
 }

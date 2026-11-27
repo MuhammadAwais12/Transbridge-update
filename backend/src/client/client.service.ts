@@ -32,6 +32,10 @@ import { BridgeService } from 'src/integration/bridge/bridge.service';
 import { Msb, User } from 'src/msb-admin/msb-admin.entity';
 import { EmailService } from '../email/email.service';
 import { brand } from '../config/brand.config';
+import {
+  refreshSessionToken,
+  signSessionToken,
+} from '../auth/session-token';
 
 @Injectable()
 export class ClientService {
@@ -174,9 +178,9 @@ export class ClientService {
         'Email must not be longer than 254 characters',
       );
     }
-    if (!password || password.length < 6 || password.length > 128) {
+    if (!password || password.length < 12 || password.length > 128) {
       throw new BadRequestException(
-        'Password must be between 6 and 128 characters',
+        'Password must be between 12 and 128 characters',
       );
     }
     // name, first_name, and last_name are optional; no manual validation
@@ -429,8 +433,7 @@ export class ClientService {
         console.error('Failed to send KYC email:', emailError);
       }
 
-      const payload = { sub: user.id, email: user.email, role: user.role };
-      const token = this.jwtService.sign(payload);
+      const token = signSessionToken(this.jwtService, user);
       return {
         message: 'Client registered successfully',
         token,
@@ -529,8 +532,7 @@ export class ClientService {
 
     user.last_login = new Date();
     await this.userRepository.save(user);
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
+    const token = signSessionToken(this.jwtService, user);
     // Fetch client profile for this user
     const clientProfile = await this.clientRepository.findOne({
       where: { user_id: user.id },
@@ -708,9 +710,9 @@ export class ClientService {
         'Current password must be between 6 and 128 characters',
       );
     }
-    if (!newPassword || newPassword.length < 6 || newPassword.length > 128) {
+    if (!newPassword || newPassword.length < 12 || newPassword.length > 128) {
       throw new BadRequestException(
-        'New password must be between 6 and 128 characters',
+        'New password must be between 12 and 128 characters',
       );
     }
 
@@ -737,13 +739,16 @@ export class ClientService {
     // Update password and mark as changed
     user.password_hash = newPasswordHash;
     user.password_changed = true;
+    user.token_version += 1;
     user.updated_at = new Date();
 
     await this.userRepository.save(user);
 
+    // Older tokens are now revoked; give this session a fresh one so it stays signed in.
     return {
       message: 'Password changed successfully',
       success: true,
+      token: signSessionToken(this.jwtService, user),
     };
   }
 
@@ -1397,38 +1402,13 @@ export class ClientService {
   }
 
   async requestPasswordReset(requestResetPasswordDto: RequestResetPasswordDto) {
-    const { email } = requestResetPasswordDto;
+    const email = requestResetPasswordDto.email.trim().toLowerCase();
 
-    // Check if email exists in the users table
-    const user = await this.userRepository.findOne({
-      where: { email, role: 'account_holder' },
+    // Do the lookup, token write and email after responding, so response time
+    // does not reveal whether the account exists.
+    void this.issuePasswordReset(email).catch((error) => {
+      console.error('Failed to issue password reset:', error);
     });
-
-    if (!user) {
-      throw new NotFoundException('Email not found');
-    }
-
-    // Create a new reset password record
-    const resetPassword = this.resetPasswordRepository.create({
-      email: email.toLowerCase(),
-      used: false,
-    });
-    await this.resetPasswordRepository.save(resetPassword);
-
-    // Generate reset link with token (using the id as token)
-    const frontendUrl = process.env.FRONTEND_URL || brand.dashboardOrigin;
-    const resetLink = `${frontendUrl}/reset-password?token=${resetPassword.id}`;
-
-    // Send reset password email
-    try {
-      await this.emailService.sendResetPasswordEmail({
-        email: email.toLowerCase(),
-        resetLink,
-      });
-    } catch (emailError) {
-      // Log email error but don't fail the request
-      console.error('Failed to send reset password email:', emailError);
-    }
 
     return {
       message: 'If the email exists, a password reset link has been sent',
@@ -1436,54 +1416,109 @@ export class ClientService {
     };
   }
 
+  private async issuePasswordReset(email: string): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { email, role: 'account_holder' },
+    });
+    if (!user) return;
+
+    // Only the newest link works.
+    await this.resetPasswordRepository.update(
+      { email, used: false },
+      { used: true },
+    );
+
+    const resetPassword = this.resetPasswordRepository.create({
+      email,
+      used: false,
+    });
+    await this.resetPasswordRepository.save(resetPassword);
+
+    const frontendUrl = process.env.FRONTEND_URL || brand.dashboardOrigin;
+    const resetLink = `${frontendUrl}/reset-password?token=${resetPassword.id}`;
+    await this.emailService.sendResetPasswordEmail({ email, resetLink });
+  }
+
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const { token, newPassword } = resetPasswordDto;
 
     // Manual validation as backup
-    if (!newPassword || newPassword.length < 6 || newPassword.length > 128) {
+    if (!newPassword || newPassword.length < 12 || newPassword.length > 128) {
       throw new BadRequestException(
-        'New password must be between 6 and 128 characters',
+        'New password must be between 12 and 128 characters',
       );
     }
 
-    // Find the reset password record
-    const resetPassword = await this.resetPasswordRepository.findOne({
-      where: { id: token },
-    });
-
-    if (!resetPassword) {
-      throw new BadRequestException('Invalid or expired reset token');
-    }
-
-    if (resetPassword.used) {
-      throw new BadRequestException('This reset token has already been used');
-    }
-
-    // Find the user by email
-    const user = await this.userRepository.findOne({
-      where: { email: resetPassword.email, role: 'account_holder' },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Hash new password
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    const validSince = new Date(Date.now() - 30 * 60 * 1000);
 
-    // Update password and mark reset token as used
-    user.password_hash = newPasswordHash;
-    user.password_changed = true;
-    user.updated_at = new Date();
-    await this.userRepository.save(user);
+    await this.dataSource.transaction(async (manager) => {
+      const tokenUpdate = await manager
+        .createQueryBuilder()
+        .update(ResetPassword)
+        .set({ used: true })
+        .where('"id" = :token AND "used" = false AND "created_at" > :validSince', {
+          token,
+          validSince,
+        })
+        .execute();
 
-    resetPassword.used = true;
-    await this.resetPasswordRepository.save(resetPassword);
+      if (!tokenUpdate.affected) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      const resetPassword = await manager.findOne(ResetPassword, {
+        where: { id: token },
+      });
+      if (!resetPassword) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      const user = await manager.findOne(User, {
+        where: { email: resetPassword.email, role: 'account_holder' },
+      });
+      if (!user) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      user.password_hash = newPasswordHash;
+      user.password_changed = true;
+      user.token_version += 1;
+      user.updated_at = new Date();
+      await manager.save(user);
+    });
 
     return {
       message: 'Password reset successfully',
       success: true,
     };
+  }
+
+  async logout(userId: string) {
+    const result = await this.userRepository.increment(
+      { id: userId, role: 'account_holder' },
+      'token_version',
+      1,
+    );
+    if (!result.affected) {
+      throw new UnauthorizedException('User not found');
+    }
+    return { message: 'Logged out successfully', success: true };
+  }
+
+  async refreshToken(
+    userId: string,
+    authTime: number | undefined,
+    tokenVersion: number | undefined,
+  ) {
+    return refreshSessionToken(
+      this.jwtService,
+      this.userRepository,
+      userId,
+      'account_holder',
+      authTime,
+      tokenVersion,
+    );
   }
 }
 

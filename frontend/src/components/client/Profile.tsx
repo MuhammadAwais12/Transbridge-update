@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBranding } from '../../contexts/BrandingContext';
 import { apiFetch, ApiError } from '../../lib/apiFetch';
+import { setAuthToken } from '../../lib/auth';
 import { 
   User, 
   Mail, 
@@ -238,8 +239,8 @@ export default function Profile() {
     if (!securityData.newPassword.trim()) {
       newFieldErrors.newPassword = 'New password is required';
       hasErrors = true;
-    } else if (securityData.newPassword.length < 6) {
-      newFieldErrors.newPassword = 'New password must be at least 6 characters';
+    } else if (securityData.newPassword.length < 12) {
+      newFieldErrors.newPassword = 'New password must be at least 12 characters';
       hasErrors = true;
     } else if (securityData.newPassword.length > 128) {
       newFieldErrors.newPassword = 'New password must not exceed 128 characters';
@@ -263,7 +264,7 @@ export default function Profile() {
     try {
       // Backend answers 401 for a wrong current password, so don't log the user out on 401 here
       try {
-        await apiFetch('/client/change-password', {
+        const result = await apiFetch<{ token?: string }>('/client/change-password', {
           method: 'POST',
           body: JSON.stringify({
             currentPassword: securityData.currentPassword,
@@ -271,6 +272,8 @@ export default function Profile() {
           }),
           skipAuthRedirect: true,
         });
+        // The backend revokes older tokens on password change; keep this session on the new one.
+        if (result?.token) setAuthToken(result.token);
       } catch (err) {
         if (!(err instanceof ApiError)) throw err; // network error -> outer catch
         setError(err.status === 401 ? 'Current password is incorrect' : err.message || 'Failed to change password');

@@ -13,7 +13,7 @@ export class ResetPasswordDto {
   @ApiProperty({ description: 'New password' })
   @IsString()
   @IsNotEmpty()
-  @MinLength(6, { message: 'New password must be at least 6 characters' })
+  @MinLength(12, { message: 'New password must be at least 12 characters' })
   @MaxLength(128, { message: 'New password must not exceed 128 characters' })
   newPassword: string;
 }

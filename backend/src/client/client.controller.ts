@@ -40,7 +40,9 @@ import type { Request as ExpressRequest } from 'express';
 import { AccessService, Caller } from '../auth/access.service';
 import { Authenticated, CurrentCaller } from '../auth/caller.guard';
 
-type AuthenticatedRequest = ExpressRequest & { user?: { userId?: string } };
+type AuthenticatedRequest = ExpressRequest & {
+  user?: { userId?: string; authTime?: number; tokenVersion?: number };
+};
 
 @ApiTags('Client')
 @Controller('client')
@@ -68,7 +70,10 @@ export class ClientController {
 
   @Post('login')
   @UseGuards(ThrottlerGuard)
-  @Throttle({ otp: { limit: 6, ttl: 3 * 60 * 1000 } })
+  @Throttle({
+    otp: { limit: 6, ttl: 3 * 60 * 1000 },
+    ip: { limit: 30, ttl: 3 * 60 * 1000 },
+  })
   @ApiOperation({ summary: 'Login as a client' })
   @ApiBody({ type: LoginClientDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
@@ -317,13 +322,17 @@ export class ClientController {
   }
 
   @Post('request-reset-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    otp: { limit: 3, ttl: 15 * 60 * 1000 },
+    ip: { limit: 15, ttl: 15 * 60 * 1000 },
+  })
   @ApiOperation({ summary: 'Request password reset link' })
   @ApiBody({ type: RequestResetPasswordDto })
   @ApiResponse({
     status: 200,
     description: 'Password reset link sent if email exists',
   })
-  @ApiResponse({ status: 404, description: 'Email not found' })
   async requestPasswordReset(
     @Body() requestResetPasswordDto: RequestResetPasswordDto,
   ) {
@@ -331,12 +340,42 @@ export class ClientController {
   }
 
   @Post('reset-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({
+    otp: { limit: 5, ttl: 15 * 60 * 1000 },
+    ip: { limit: 20, ttl: 15 * 60 * 1000 },
+  })
   @ApiOperation({ summary: 'Reset password using token from email link' })
   @ApiBody({ type: ResetPasswordDto })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
   @ApiResponse({ status: 400, description: 'Invalid token or validation error' })
-  @ApiResponse({ status: 404, description: 'User not found' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.clientService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  async logout(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+    return this.clientService.logout(userId);
+  }
+
+  @Post('refresh-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Exchange a valid access token for a fresh one' })
+  @ApiResponse({ status: 401, description: 'Unauthorized or session too old' })
+  async refreshToken(@Request() req: AuthenticatedRequest) {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException('User not authenticated');
+    }
+    return this.clientService.refreshToken(
+      userId,
+      req.user?.authTime,
+      req.user?.tokenVersion,
+    );
   }
 }
