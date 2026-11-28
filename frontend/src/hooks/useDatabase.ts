@@ -951,7 +951,16 @@ export function useTransactions() {
         return;
       }
 
-      const clientId = user.clientId || user.id;
+      // The API expects clients.id; users.id never matches and fails the ownership check.
+      const clientId = user.clientId;
+      if (!clientId) {
+        setTransactions([]);
+        setHasMore(false);
+        setError('Client profile not found. Please log in again.');
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
 
       // Fetch from backend with pagination
       const data = await apiFetch('/transaction/list', {
@@ -1046,7 +1055,12 @@ export function useTransactions() {
         // For now, we'll use msbId as a fallback
         clientId = user.msbId;
       } else {
-        clientId = user.clientId || user.id; // Use clientId for clients, fallback to id
+        // The API expects clients.id; users.id never matches and fails the ownership check.
+        clientId = user.clientId;
+        if (!clientId) {
+          setError('Client profile not found. Please log in again.');
+          return [];
+        }
       }
       const data = await apiFetch(`/transaction/recent?user_id=${clientId}`);
       return data.transactions || []; // Assume backend already returns an array of transactions

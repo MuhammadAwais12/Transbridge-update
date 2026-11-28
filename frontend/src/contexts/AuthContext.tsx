@@ -296,7 +296,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setConnectingWallet,
       walletError,
       setWalletError,
-      clearWalletError, passwordChanged }}>
+      clearWalletError, passwordChanged,
+      // clients.id from the login response (data.client.id); null for MSB admins.
+      clientId: user?.role === 'account_holder' ? user.clientId ?? null : null }}>
       {children}
     </AuthContext.Provider>
   );
